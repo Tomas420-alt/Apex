@@ -29,6 +29,7 @@ import {
 import { GenerateButton } from '../../components/GenerateButton';
 import { getCurrencySymbol, getCurrencyIconName } from '../../utils/currency';
 import { CurrencyIcon } from '../../components/CurrencyIcon';
+import { colors } from '@/constants/theme';
 
 interface Part {
   _id: Id<'parts'>;
@@ -46,25 +47,25 @@ const SECTION_CONFIG = {
     title: 'Required Parts',
     subtitle: 'Must purchase to complete this task',
     icon: Package,
-    iconColor: '#10B981',
-    accentBg: '#F0FDF4',
-    accentBorder: '#D1FAE5',
+    iconColor: colors.green,
+    accentBg: 'rgba(0,229,153,0.08)',
+    accentBorder: 'rgba(0,229,153,0.2)',
   },
   consumable: {
     title: 'Consumables',
     subtitle: 'Single-use items needed for the job',
     icon: Droplets,
-    iconColor: '#F59E0B',
-    accentBg: '#FFFBEB',
-    accentBorder: '#FEF3C7',
+    iconColor: colors.orange,
+    accentBg: 'rgba(255,159,67,0.08)',
+    accentBorder: 'rgba(255,159,67,0.2)',
   },
   tool: {
     title: 'Recommended Tools',
     subtitle: 'You may already own these',
     icon: Wrench,
-    iconColor: '#6B7280',
-    accentBg: '#F9FAFB',
-    accentBorder: '#E5E7EB',
+    iconColor: colors.textSecondary,
+    accentBg: 'rgba(142,142,160,0.08)',
+    accentBorder: 'rgba(142,142,160,0.2)',
   },
 };
 
@@ -91,11 +92,11 @@ function PartCard({
           style={styles.checkButton}
         >
           {togglingId === part._id ? (
-            <ActivityIndicator size="small" color="#10B981" />
+            <ActivityIndicator size="small" color={colors.green} />
           ) : part.purchased ? (
-            <CheckCircle2 size={22} color="#10B981" />
+            <CheckCircle2 size={22} color={colors.green} />
           ) : (
-            <Circle size={22} color="#D1D5DB" />
+            <Circle size={22} color={colors.textTertiary} />
           )}
         </TouchableOpacity>
         <View style={styles.partInfo}>
@@ -107,7 +108,7 @@ function PartCard({
           </Text>
           {part.partNumber ? (
             <View style={styles.metaRow}>
-              <Hash size={11} color="#9CA3AF" />
+              <Hash size={11} color={colors.textTertiary} />
               <Text style={styles.metaText}>{part.partNumber}</Text>
             </View>
           ) : null}
@@ -125,7 +126,7 @@ function PartCard({
         <View style={styles.partBottomRow}>
           {part.supplier ? (
             <View style={styles.supplierChip}>
-              <Store size={11} color="#6B7280" />
+              <Store size={11} color={colors.textSecondary} />
               <Text style={styles.supplierText}>{part.supplier}</Text>
             </View>
           ) : null}
@@ -135,7 +136,7 @@ function PartCard({
               onPress={() => onOpenUrl(part.url!)}
               activeOpacity={0.7}
             >
-              <ExternalLink size={12} color="#3B82F6" />
+              <ExternalLink size={12} color={colors.blue} />
               <Text style={styles.linkText}>Buy</Text>
             </TouchableOpacity>
           ) : null}
@@ -245,7 +246,7 @@ export default function TaskPartsScreen() {
         >
           <Icon size={16} color={config.iconColor} />
           <View style={styles.sectionTextBlock}>
-            <Text style={styles.sectionTitle}>{config.title}</Text>
+            <Text style={[styles.sectionTitle, { color: config.iconColor }]}>{config.title}</Text>
             <Text style={styles.sectionSubtitle}>{config.subtitle}</Text>
           </View>
         </View>
@@ -265,7 +266,7 @@ export default function TaskPartsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
 
       {/* Header */}
       <View style={styles.header}>
@@ -274,7 +275,7 @@ export default function TaskPartsScreen() {
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <ArrowLeft size={22} color="#1F2937" />
+          <ArrowLeft size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
           Parts List
@@ -289,7 +290,7 @@ export default function TaskPartsScreen() {
       >
         {/* Task name */}
         <View style={styles.taskNameCard}>
-          <Package size={18} color="#3B82F6" />
+          <Package size={18} color={colors.blue} />
           <Text style={styles.taskNameText} numberOfLines={2}>
             {decodedTaskName}
           </Text>
@@ -297,13 +298,13 @@ export default function TaskPartsScreen() {
 
         {isLoading ? (
           <View style={styles.centeredContainer}>
-            <ActivityIndicator size="large" color="#10B981" />
+            <ActivityIndicator size="large" color={colors.green} />
             <Text style={styles.centeredText}>Loading parts...</Text>
           </View>
         ) : !hasParts ? (
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconWrapper}>
-              <Package size={40} color="#9CA3AF" />
+              <Package size={40} color={colors.textTertiary} />
             </View>
             <Text style={styles.emptyTitle}>No Parts Listed</Text>
             <Text style={styles.emptySubtitle}>
@@ -324,12 +325,12 @@ export default function TaskPartsScreen() {
             {/* Summary card */}
             <View style={styles.summaryCard}>
               <View style={styles.summaryItem}>
-                <CurrencyIcon iconName={currencyIconName} fallbackSymbol={currency} size={15} color="#10B981" />
+                <CurrencyIcon iconName={currencyIconName} fallbackSymbol={currency} size={15} color={colors.green} />
                 <Text style={styles.summaryLabel}>Est. Total</Text>
                 <Text style={styles.summaryValue}>{currency}{totalCost.toFixed(0)}</Text>
               </View>
               <View style={[styles.summaryItem, styles.summaryItemBordered]}>
-                <CheckCircle2 size={15} color="#3B82F6" />
+                <CheckCircle2 size={15} color={colors.blue} />
                 <Text style={styles.summaryLabel}>Purchased</Text>
                 <Text style={styles.summaryValue}>
                   {purchasedCount}/{parts.length}
@@ -372,22 +373,22 @@ export default function TaskPartsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.bg,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.bg,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   backButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.surface1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -396,7 +397,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 17,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.textPrimary,
     marginHorizontal: 8,
   },
   headerSpacer: {
@@ -415,17 +416,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: 'rgba(91,141,239,0.12)',
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: 'rgba(91,141,239,0.2)',
   },
   taskNameText: {
     flex: 1,
     fontSize: 15,
     fontWeight: '600',
-    color: '#1E40AF',
+    color: colors.blue,
     lineHeight: 20,
   },
   centeredContainer: {
@@ -435,16 +436,16 @@ const styles = StyleSheet.create({
   },
   centeredText: {
     fontSize: 15,
-    color: '#6B7280',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   emptyContainer: {
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface1,
     borderRadius: 16,
     padding: 32,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     borderStyle: 'dashed',
     gap: 12,
   },
@@ -452,7 +453,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surface2,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
@@ -460,22 +461,22 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
   },
   summaryCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface1,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     flexDirection: 'row',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   summaryItem: {
     flex: 1,
@@ -484,19 +485,19 @@ const styles = StyleSheet.create({
   },
   summaryItemBordered: {
     borderLeftWidth: 1,
-    borderLeftColor: '#E5E7EB',
+    borderLeftColor: colors.border,
     marginLeft: 12,
     paddingLeft: 12,
   },
   summaryLabel: {
     fontSize: 11,
-    color: '#9CA3AF',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   summaryValue: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
   // Section headers
   sectionHeader: {
@@ -515,25 +516,25 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
   sectionSubtitle: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   // Part card
   partCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    backgroundColor: colors.surface1,
+    borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     gap: 10,
   },
   partCardPurchased: {
     opacity: 0.7,
-    borderColor: '#D1FAE5',
-    backgroundColor: '#F9FFFE',
+    borderColor: 'rgba(0,229,153,0.2)',
+    backgroundColor: 'rgba(0,229,153,0.05)',
   },
   partTopRow: {
     flexDirection: 'row',
@@ -550,11 +551,11 @@ const styles = StyleSheet.create({
   partName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.textPrimary,
     lineHeight: 20,
   },
   partNamePurchased: {
-    color: '#6B7280',
+    color: colors.textSecondary,
     textDecorationLine: 'line-through',
   },
   metaRow: {
@@ -564,11 +565,11 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: colors.textTertiary,
     fontWeight: '500',
   },
   priceTag: {
-    backgroundColor: '#F0FDF4',
+    backgroundColor: 'rgba(0,229,153,0.12)',
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -576,7 +577,7 @@ const styles = StyleSheet.create({
   priceText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#065F46',
+    color: colors.green,
   },
   partBottomRow: {
     flexDirection: 'row',
@@ -588,30 +589,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surface2,
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
   supplierText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   linkButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: 'rgba(91,141,239,0.12)',
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: 'rgba(91,141,239,0.2)',
   },
   linkText: {
     fontSize: 12,
-    color: '#3B82F6',
+    color: colors.blue,
     fontWeight: '600',
   },
   // Optional divider
@@ -626,12 +627,12 @@ const styles = StyleSheet.create({
   optionalDividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#93C5FD',
+    backgroundColor: colors.border,
   },
   optionalDividerText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#3B82F6',
+    color: colors.blue,
     letterSpacing: 0.3,
   },
 });

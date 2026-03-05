@@ -34,6 +34,7 @@ import {
 import { GenerateButton } from '../../components/GenerateButton';
 import { getCurrencySymbol, getCurrencyIconName } from '../../utils/currency';
 import { CurrencyIcon } from '../../components/CurrencyIcon';
+import { colors } from '@/constants/theme';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -72,21 +73,21 @@ const PRIORITY_CONFIG: Record<
   Priority,
   { bg: string; text: string; label: string }
 > = {
-  critical: { bg: '#FEE2E2', text: '#991B1B', label: 'Critical' },
-  high: { bg: '#FED7AA', text: '#9A3412', label: 'High' },
-  medium: { bg: '#FEF3C7', text: '#92400E', label: 'Medium' },
-  low: { bg: '#E5E7EB', text: '#4B5563', label: 'Low' },
+  critical: { bg: colors.priority.critical.bg, text: colors.priority.critical.text, label: 'Critical' },
+  high: { bg: colors.priority.high.bg, text: colors.priority.high.text, label: 'High' },
+  medium: { bg: colors.priority.medium.bg, text: colors.priority.medium.text, label: 'Medium' },
+  low: { bg: colors.priority.low.bg, text: colors.priority.low.text, label: 'Low' },
 };
 
 const STATUS_CONFIG: Record<
   TaskStatus,
   { bg: string; text: string; label: string }
 > = {
-  pending: { bg: '#F3F4F6', text: '#6B7280', label: 'Pending' },
-  due: { bg: '#DBEAFE', text: '#1E40AF', label: 'Due' },
-  overdue: { bg: '#FEE2E2', text: '#991B1B', label: 'Overdue' },
-  completed: { bg: '#D1FAE5', text: '#065F46', label: 'Completed' },
-  skipped: { bg: '#F3F4F6', text: '#9CA3AF', label: 'Skipped' },
+  pending: { bg: colors.status.pending.bg, text: colors.status.pending.text, label: 'Pending' },
+  due: { bg: colors.status.due.bg, text: colors.status.due.text, label: 'Due' },
+  overdue: { bg: colors.status.overdue.bg, text: colors.status.overdue.text, label: 'Overdue' },
+  completed: { bg: colors.status.completed.bg, text: colors.status.completed.text, label: 'Completed' },
+  skipped: { bg: colors.status.skipped.bg, text: colors.status.skipped.text, label: 'Skipped' },
 };
 
 // ─── TaskCard component ───────────────────────────────────────────────────────
@@ -160,7 +161,7 @@ function TaskCard({
       <View style={styles.taskMetaRow}>
         {(task.intervalKm || task.intervalMonths) ? (
           <View style={styles.metaItem}>
-            <RefreshCw size={12} color="#6B7280" />
+            <RefreshCw size={12} color={colors.textSecondary} />
             <Text style={styles.metaText}>
               {[
                 task.intervalKm ? `${task.intervalKm.toLocaleString()} km` : null,
@@ -174,7 +175,7 @@ function TaskCard({
 
         {task.estimatedCostUsd ? (
           <View style={styles.metaItem}>
-            <CurrencyIcon iconName={currencyIconName} fallbackSymbol={currency} size={12} color="#6B7280" />
+            <CurrencyIcon iconName={currencyIconName} fallbackSymbol={currency} size={12} color={colors.textSecondary} />
             <Text style={styles.metaText}>
               ~{task.estimatedCostUsd.toFixed(0)}
             </Text>
@@ -183,7 +184,7 @@ function TaskCard({
 
         {task.dueMileage ? (
           <View style={styles.metaItem}>
-            <Gauge size={12} color="#6B7280" />
+            <Gauge size={12} color={colors.textSecondary} />
             <Text style={styles.metaText}>
               Due at {task.dueMileage.toLocaleString()} km
             </Text>
@@ -192,7 +193,7 @@ function TaskCard({
 
         {task.dueDate ? (
           <View style={styles.metaItem}>
-            <Calendar size={12} color="#6B7280" />
+            <Calendar size={12} color={colors.textSecondary} />
             <Text style={styles.metaText}>{task.dueDate}</Text>
           </View>
         ) : null}
@@ -203,7 +204,7 @@ function TaskCard({
         <View style={styles.partsChipRow}>
           {task.partsNeeded.slice(0, 3).map((part, idx) => (
             <View key={idx} style={styles.partChip}>
-              <CircleDot size={10} color="#6B7280" />
+              <CircleDot size={10} color={colors.textSecondary} />
               <Text style={styles.partChipText} numberOfLines={1}>
                 {part}
               </Text>
@@ -226,7 +227,7 @@ function TaskCard({
           onPress={() => onViewParts(task._id, task.name)}
           activeOpacity={0.7}
         >
-          <Package size={14} color="#3B82F6" />
+          <Package size={14} color={colors.blue} />
           <Text style={styles.viewPartsButtonText}>View Parts</Text>
         </TouchableOpacity>
 
@@ -251,7 +252,7 @@ function TaskCard({
           </TouchableOpacity>
         ) : (
           <View style={styles.completedBadge}>
-            <CheckCircle2 size={14} color="#10B981" />
+            <CheckCircle2 size={14} color={colors.green} />
             <Text style={styles.completedBadgeText}>Completed</Text>
           </View>
         )}
@@ -318,7 +319,7 @@ function UpdateMileageModal({
             onChangeText={setValue}
             keyboardType="numeric"
             placeholder="Enter new mileage"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={colors.textTertiary}
             autoFocus
             selectTextOnFocus
           />
@@ -361,7 +362,7 @@ function EmptyPlan({ isGenerating, onGenerate }: EmptyPlanProps) {
   return (
     <View style={styles.emptyPlanContainer}>
       <View style={styles.emptyPlanIconWrapper}>
-        <Wrench size={40} color="#9CA3AF" />
+        <Wrench size={40} color={colors.textSecondary} />
       </View>
       <Text style={styles.emptyPlanTitle}>No Maintenance Plan</Text>
       <Text style={styles.emptyPlanSubtitle}>
@@ -461,9 +462,9 @@ export default function BikeDetailScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#10B981" />
+          <ActivityIndicator size="large" color={colors.green} />
           <Text style={styles.loadingText}>Loading bike details...</Text>
         </View>
       </SafeAreaView>
@@ -474,7 +475,7 @@ export default function BikeDetailScreen() {
   if (!bike) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
@@ -487,13 +488,13 @@ export default function BikeDetailScreen() {
             }}
             activeOpacity={0.7}
           >
-            <ArrowLeft size={22} color="#1F2937" />
+            <ArrowLeft size={22} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Bike Details</Text>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.notFoundContainer}>
-          <AlertTriangle size={48} color="#EF4444" />
+          <AlertTriangle size={48} color={colors.red} />
           <Text style={styles.notFoundTitle}>Bike Not Found</Text>
           <Text style={styles.notFoundSubtitle}>
             This bike could not be found or you do not have access to it.
@@ -527,7 +528,7 @@ export default function BikeDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
 
       {/* ── Header ── */}
       <View style={styles.header}>
@@ -542,7 +543,7 @@ export default function BikeDetailScreen() {
           }}
           activeOpacity={0.7}
         >
-          <ArrowLeft size={22} color="#1F2937" />
+          <ArrowLeft size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
           {bike.make} {bike.model}
@@ -564,7 +565,7 @@ export default function BikeDetailScreen() {
             </View>
             {overdueCount > 0 ? (
               <View style={styles.overduePill}>
-                <AlertTriangle size={12} color="#991B1B" />
+                <AlertTriangle size={12} color={colors.red} />
                 <Text style={styles.overduePillText}>
                   {overdueCount} overdue
                 </Text>
@@ -579,7 +580,7 @@ export default function BikeDetailScreen() {
           {/* Stats row */}
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Gauge size={16} color="#10B981" />
+              <Gauge size={16} color={colors.green} />
               <View style={styles.statTextBlock}>
                 <Text style={styles.statValue}>
                   {bike.mileage.toLocaleString()} km
@@ -590,7 +591,7 @@ export default function BikeDetailScreen() {
 
             {bike.lastServiceDate ? (
               <View style={[styles.statItem, styles.statItemBordered]}>
-                <Calendar size={16} color="#3B82F6" />
+                <Calendar size={16} color={colors.blue} />
                 <View style={styles.statTextBlock}>
                   <Text style={styles.statValue}>{bike.lastServiceDate}</Text>
                   <Text style={styles.statLabel}>Last Service</Text>
@@ -600,7 +601,7 @@ export default function BikeDetailScreen() {
 
             {bike.lastServiceMileage ? (
               <View style={[styles.statItem, styles.statItemBordered]}>
-                <Wrench size={16} color="#F59E0B" />
+                <Wrench size={16} color={colors.orange} />
                 <View style={styles.statTextBlock}>
                   <Text style={styles.statValue}>
                     {bike.lastServiceMileage.toLocaleString()} km
@@ -617,14 +618,14 @@ export default function BikeDetailScreen() {
             onPress={() => setMileageModalVisible(true)}
             activeOpacity={0.8}
           >
-            <Gauge size={15} color="#1F2937" />
+            <Gauge size={15} color={colors.textPrimary} />
             <Text style={styles.updateMileageText}>Update Mileage</Text>
           </TouchableOpacity>
         </View>
 
         {/* ── Maintenance Plan Section ── */}
         <View style={styles.sectionHeader}>
-          <Wrench size={18} color="#1F2937" />
+          <Wrench size={18} color={colors.textPrimary} />
           <Text style={styles.sectionTitle}>Maintenance Plan</Text>
           {plan && tasks.length > 0 ? (
             <View style={styles.sectionBadge}>
@@ -642,7 +643,7 @@ export default function BikeDetailScreen() {
           />
         ) : tasks.length === 0 ? (
           <View style={styles.noTasksContainer}>
-            <Clock size={32} color="#9CA3AF" />
+            <Clock size={32} color={colors.textSecondary} />
             <Text style={styles.noTasksText}>
               Plan generated — tasks loading...
             </Text>
@@ -653,7 +654,7 @@ export default function BikeDetailScreen() {
             {plan.totalEstimatedCost > 0 ? (
               <View style={styles.planSummaryCard}>
                 <View style={styles.planSummaryItem}>
-                  <CurrencyIcon iconName={currencyIconName} fallbackSymbol={currency} size={15} color="#10B981" />
+                  <CurrencyIcon iconName={currencyIconName} fallbackSymbol={currency} size={15} color={colors.green} />
                   <Text style={styles.planSummaryLabel}>
                     Total Estimated Cost
                   </Text>
@@ -663,7 +664,7 @@ export default function BikeDetailScreen() {
                 </View>
                 {plan.nextServiceDate ? (
                   <View style={[styles.planSummaryItem, styles.planSummaryItemBordered]}>
-                    <Calendar size={15} color="#3B82F6" />
+                    <Calendar size={15} color={colors.blue} />
                     <Text style={styles.planSummaryLabel}>Next Service</Text>
                     <Text style={styles.planSummaryValue}>
                       {plan.nextServiceDate}
@@ -729,7 +730,7 @@ export default function BikeDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.bg,
   },
 
   // Loading / not found
@@ -741,7 +742,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 15,
-    color: '#6B7280',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   notFoundContainer: {
@@ -754,24 +755,24 @@ const styles = StyleSheet.create({
   notFoundTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.textPrimary,
     marginTop: 8,
   },
   notFoundSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
   },
   goBackButton: {
     marginTop: 12,
-    backgroundColor: '#1F2937',
+    backgroundColor: colors.surface2,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 10,
   },
   goBackButtonText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontWeight: '600',
     fontSize: 15,
   },
@@ -782,15 +783,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.bg,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   backButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.surface1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -799,7 +800,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 17,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.textPrimary,
     marginHorizontal: 8,
   },
   headerSpacer: {
@@ -813,22 +814,17 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 20,
-    paddingBottom: 48,
+    paddingBottom: 40,
     gap: 16,
   },
 
   // Bike info card
   bikeInfoCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface1,
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 3,
+    borderColor: colors.border,
   },
   bikeInfoTopRow: {
     flexDirection: 'row',
@@ -837,7 +833,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   yearBadge: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surface2,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -845,13 +841,13 @@ const styles = StyleSheet.create({
   yearBadgeText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
   overduePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: 'rgba(255,107,107,0.15)',
     borderRadius: 20,
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -859,12 +855,12 @@ const styles = StyleSheet.create({
   overduePillText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#991B1B',
+    color: colors.red,
   },
   bikeFullName: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.textPrimary,
     marginBottom: 16,
   },
   statsRow: {
@@ -883,7 +879,7 @@ const styles = StyleSheet.create({
   },
   statItemBordered: {
     borderLeftWidth: 1,
-    borderLeftColor: '#E5E7EB',
+    borderLeftColor: colors.border,
     paddingLeft: 16,
     marginLeft: 8,
   },
@@ -893,11 +889,11 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
   statLabel: {
     fontSize: 11,
-    color: '#9CA3AF',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   updateMileageButton: {
@@ -905,16 +901,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surface2,
     borderRadius: 10,
     paddingVertical: 11,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   updateMileageText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
 
   // Section header
@@ -927,11 +923,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.textPrimary,
     flex: 1,
   },
   sectionBadge: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.surface2,
     borderRadius: 20,
     paddingHorizontal: 10,
     paddingVertical: 3,
@@ -939,17 +935,17 @@ const styles = StyleSheet.create({
   sectionBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
 
   // Empty plan
   emptyPlanContainer: {
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface1,
     borderRadius: 16,
     padding: 32,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     borderStyle: 'dashed',
     gap: 12,
   },
@@ -957,7 +953,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surface2,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
@@ -965,11 +961,11 @@ const styles = StyleSheet.create({
   emptyPlanTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
   emptyPlanSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
   },
@@ -982,19 +978,19 @@ const styles = StyleSheet.create({
   },
   noTasksText: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
 
   // Plan summary
   planSummaryCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface1,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     flexDirection: 'row',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   planSummaryItem: {
     flex: 1,
@@ -1003,41 +999,36 @@ const styles = StyleSheet.create({
   },
   planSummaryItemBordered: {
     borderLeftWidth: 1,
-    borderLeftColor: '#E5E7EB',
+    borderLeftColor: colors.border,
     marginLeft: 12,
     paddingLeft: 12,
   },
   planSummaryLabel: {
     fontSize: 11,
-    color: '#9CA3AF',
+    color: colors.textSecondary,
     fontWeight: '500',
     textAlign: 'center',
   },
   planSummaryValue: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.textPrimary,
     textAlign: 'center',
   },
 
   // Task card
   taskCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface1,
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
+    borderColor: colors.border,
     gap: 10,
   },
   taskCardCompleted: {
     opacity: 0.7,
-    borderColor: '#D1FAE5',
-    backgroundColor: '#F9FFFE',
+    borderColor: 'rgba(0,229,153,0.15)',
+    backgroundColor: colors.surface1,
   },
   taskHeaderRow: {
     flexDirection: 'row',
@@ -1050,11 +1041,11 @@ const styles = StyleSheet.create({
   taskName: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.textPrimary,
     lineHeight: 20,
   },
   taskNameCompleted: {
-    color: '#6B7280',
+    color: colors.textSecondary,
     textDecorationLine: 'line-through',
   },
   taskBadgeColumn: {
@@ -1074,7 +1065,7 @@ const styles = StyleSheet.create({
   },
   taskDescription: {
     fontSize: 13,
-    color: '#6B7280',
+    color: colors.textSecondary,
     lineHeight: 19,
   },
   taskMetaRow: {
@@ -1089,7 +1080,7 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   partsChipRow: {
@@ -1101,7 +1092,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surface2,
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -1109,7 +1100,7 @@ const styles = StyleSheet.create({
   },
   partChipText: {
     fontSize: 11,
-    color: '#6B7280',
+    color: colors.textSecondary,
     fontWeight: '500',
     flexShrink: 1,
   },
@@ -1119,7 +1110,7 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 2,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: colors.border,
     paddingTop: 10,
   },
   viewPartsButton: {
@@ -1129,15 +1120,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: 'rgba(91,141,239,0.2)',
     borderRadius: 8,
     paddingVertical: 9,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: 'rgba(91,141,239,0.12)',
   },
   viewPartsButtonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#3B82F6',
+    color: colors.blue,
   },
   completeButton: {
     flex: 1,
@@ -1145,14 +1136,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#10B981',
+    backgroundColor: colors.green,
     borderRadius: 8,
     paddingVertical: 9,
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
   },
   completeButtonDisabled: {
     opacity: 0.65,
@@ -1168,14 +1154,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#D1FAE5',
+    backgroundColor: 'rgba(0,229,153,0.15)',
     borderRadius: 8,
     paddingVertical: 9,
   },
   completedBadgeText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#065F46',
+    color: colors.green,
   },
 
 
@@ -1185,15 +1171,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.blue,
     borderRadius: 14,
     paddingVertical: 15,
     marginTop: 8,
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
   },
   allPartsButtonText: {
     fontSize: 15,
@@ -1207,44 +1188,41 @@ const styles = StyleSheet.create({
   // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: colors.overlay,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
   modalCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface2,
     borderRadius: 20,
     padding: 28,
     width: '100%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
     gap: 12,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.textPrimary,
     textAlign: 'center',
   },
   modalSubtitle: {
     fontSize: 13,
-    color: '#6B7280',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: -4,
   },
   modalInput: {
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.surface1,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.borderLight,
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 13,
     fontSize: 17,
-    color: '#1F2937',
+    color: colors.textPrimary,
     textAlign: 'center',
     fontWeight: '600',
     marginVertical: 4,
@@ -1257,28 +1235,23 @@ const styles = StyleSheet.create({
   modalCancelButton: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     borderRadius: 10,
     paddingVertical: 13,
     alignItems: 'center',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.surface1,
   },
   modalCancelText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   modalSaveButton: {
     flex: 1,
-    backgroundColor: '#10B981',
+    backgroundColor: colors.green,
     borderRadius: 10,
     paddingVertical: 13,
     alignItems: 'center',
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 4,
   },
   modalSaveButtonDisabled: {
     opacity: 0.65,

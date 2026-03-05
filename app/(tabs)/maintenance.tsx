@@ -15,6 +15,7 @@ import { Wrench } from 'lucide-react-native';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { router } from 'expo-router';
+import { colors } from '@/constants/theme';
 import { Id } from '../../convex/_generated/dataModel';
 
 import { SummaryCards } from '../../components/maintenance/SummaryCards';
@@ -111,95 +112,97 @@ export default function MaintenanceScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
 
-      <View style={styles.header}>
-        <Text style={styles.title}>Maintenance</Text>
-        <Text style={styles.subtitle}>
-          {isLoading
-            ? 'Loading...'
-            : allTasks.length > 0
-              ? `${allTasks.length} task${allTasks.length !== 1 ? 's' : ''} need attention`
-              : 'All tasks up to date'}
-        </Text>
-      </View>
-
-      {/* Summary Cards */}
-      {!isLoading && (
-        <SummaryCards
-          overdueCount={overdueTasks.length}
-          dueCount={dueTasks.length}
-          completedCount={completedCount ?? 0}
-          totalSavings={savings ?? 0}
-          currency={currency}
-          currencyIconName={currencyIconName}
-        />
-      )}
-
-      {/* Bike Filter Chips */}
-      <BikeFilterChips
-        bikes={bikeList}
-        selectedBikeId={selectedBikeId}
-        onSelect={setSelectedBikeId}
-      />
-
-      {/* Section Header */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Upcoming Tasks</Text>
-      </View>
-
-      {/* Task List + Completed Section */}
       <ScrollView
-        style={styles.taskList}
-        contentContainerStyle={styles.taskListContent}
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#10B981" />
-          </View>
-        ) : filteredTasks.length === 0 && filteredCompleted.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <View style={styles.emptyIconContainer}>
-              <Wrench size={48} color="#D1D5DB" strokeWidth={1.5} />
+        <View style={styles.header}>
+          <Text style={styles.title}>Maintenance</Text>
+          <Text style={styles.subtitle}>
+            {isLoading
+              ? 'Loading...'
+              : allTasks.length > 0
+                ? `${allTasks.length} task${allTasks.length !== 1 ? 's' : ''} need attention`
+                : 'All tasks up to date'}
+          </Text>
+        </View>
+
+        {/* Summary Cards */}
+        {!isLoading && (
+          <SummaryCards
+            overdueCount={overdueTasks.length}
+            dueCount={dueTasks.length}
+            completedCount={completedCount ?? 0}
+            totalSavings={savings ?? 0}
+            currency={currency}
+            currencyIconName={currencyIconName}
+          />
+        )}
+
+        {/* Bike Filter Chips */}
+        <BikeFilterChips
+          bikes={bikeList}
+          selectedBikeId={selectedBikeId}
+          onSelect={setSelectedBikeId}
+        />
+
+        {/* Section Header */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Upcoming Tasks</Text>
+        </View>
+
+        {/* Task List + Completed Section */}
+        <View style={styles.taskList}>
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.green} />
             </View>
-            <Text style={styles.emptyTitle}>No maintenance tasks yet</Text>
-            <Text style={styles.emptyDescription}>
-              Add a bike and generate a maintenance plan to get started.
-            </Text>
-          </View>
-        ) : (
-          <>
-            {filteredTasks.map((task) => (
-              <TaskCard
-                key={task._id}
-                task={task}
-                bikeName={bikeNameMap.get(task.bikeId) ?? 'Unknown Bike'}
-                onPress={() => router.push(`/bike/${task.bikeId}` as any)}
-                onComplete={(id) =>
-                  setTaskToComplete({ id, name: task.name })
-                }
-                isCompleting={completingIds.has(task._id)}
+          ) : filteredTasks.length === 0 && filteredCompleted.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <View style={styles.emptyIconContainer}>
+                <Wrench size={48} color={colors.textTertiary} strokeWidth={1.5} />
+              </View>
+              <Text style={styles.emptyTitle}>No maintenance tasks yet</Text>
+              <Text style={styles.emptyDescription}>
+                Add a bike and generate a maintenance plan to get started.
+              </Text>
+            </View>
+          ) : (
+            <>
+              {filteredTasks.map((task) => (
+                <TaskCard
+                  key={task._id}
+                  task={task}
+                  bikeName={bikeNameMap.get(task.bikeId) ?? 'Unknown Bike'}
+                  onPress={() => router.push(`/bike/${task.bikeId}` as any)}
+                  onComplete={(id) =>
+                    setTaskToComplete({ id, name: task.name })
+                  }
+                  isCompleting={completingIds.has(task._id)}
+                  currency={currency}
+                />
+              ))}
+
+              {filteredTasks.length > 0 && filteredCompleted.length > 0 && (
+                <View style={styles.divider} />
+              )}
+
+              <CompletedSection
+                tasks={filteredCompleted.map((t) => ({
+                  _id: t._id,
+                  name: t.name,
+                  completedAt: t.completedAt,
+                  estimatedLaborCostUsd: t.estimatedLaborCostUsd,
+                  bikeName: bikeNameMap.get(t.bikeId) ?? 'Unknown Bike',
+                }))}
                 currency={currency}
               />
-            ))}
-
-            {filteredTasks.length > 0 && filteredCompleted.length > 0 && (
-              <View style={styles.divider} />
-            )}
-
-            <CompletedSection
-              tasks={filteredCompleted.map((t) => ({
-                _id: t._id,
-                name: t.name,
-                completedAt: t.completedAt,
-                estimatedLaborCostUsd: t.estimatedLaborCostUsd,
-                bikeName: bikeNameMap.get(t.bikeId) ?? 'Unknown Bike',
-              }))}
-              currency={currency}
-            />
-          </>
-        )}
+            </>
+          )}
+        </View>
       </ScrollView>
 
       {/* Complete Confirmation Modal */}
@@ -243,22 +246,23 @@ export default function MaintenanceScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.bg,
   },
   header: {
     paddingHorizontal: 24,
     paddingTop: 20,
     paddingBottom: 16,
+    backgroundColor: colors.bg,
   },
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   sectionHeader: {
@@ -268,19 +272,21 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.textPrimary,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 120,
+    flexGrow: 1,
   },
   taskList: {
-    flex: 1,
     paddingHorizontal: 24,
-  },
-  taskListContent: {
-    paddingBottom: 100,
-    flexGrow: 1,
   },
   divider: {
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border,
     marginVertical: 16,
   },
   loadingContainer: {
@@ -295,6 +301,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 40,
     paddingVertical: 80,
+    backgroundColor: colors.surface1,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   emptyIconContainer: {
     marginBottom: 16,
@@ -302,26 +312,28 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.textPrimary,
     marginBottom: 8,
     textAlign: 'center',
   },
   emptyDescription: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
   },
   // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalBox: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    backgroundColor: colors.surface2,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
     paddingHorizontal: 24,
     paddingTop: 24,
     paddingBottom: 20,
@@ -336,12 +348,12 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   modalMessage: {
     fontSize: 15,
-    color: '#6B7280',
+    color: colors.textSecondary,
     lineHeight: 22,
     marginBottom: 24,
   },
@@ -353,19 +365,19 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     borderRadius: 10,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surface1,
     alignItems: 'center',
   },
   modalCancelText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   modalConfirmBtn: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 10,
-    backgroundColor: '#10B981',
+    backgroundColor: colors.green,
     alignItems: 'center',
   },
   modalConfirmText: {

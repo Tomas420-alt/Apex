@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { CheckCircle, Bike } from 'lucide-react-native';
 import { Id } from '../../convex/_generated/dataModel';
+import { colors } from '@/constants/theme';
 
 interface CompletedTask {
   _id: Id<'maintenanceTasks'>;
@@ -33,7 +34,7 @@ export function CompletedSection({ tasks, currency }: CompletedSectionProps) {
   return (
     <View style={styles.container}>
       <View style={styles.sectionHeader}>
-        <CheckCircle size={16} color="#10B981" strokeWidth={2} />
+        <CheckCircle size={16} color={colors.green} strokeWidth={2} />
         <Text style={styles.sectionTitle}>Recently Completed</Text>
       </View>
       {tasks.map((task) => {
@@ -43,7 +44,7 @@ export function CompletedSection({ tasks, currency }: CompletedSectionProps) {
             <View style={styles.rowLeft}>
               <Text style={styles.taskName} numberOfLines={1}>{task.name}</Text>
               <View style={styles.subRow}>
-                <Bike size={10} color="#9CA3AF" />
+                <Bike size={10} color={colors.textTertiary} />
                 <Text style={styles.subText}>{task.bikeName}</Text>
                 {task.completedAt ? (
                   <Text style={styles.subText}>{timeAgo(task.completedAt)}</Text>
@@ -75,16 +76,16 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F9FFFE',
+    backgroundColor: 'rgba(0,229,153,0.05)',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#D1FAE5',
+    borderColor: 'rgba(0,229,153,0.15)',
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 8,
@@ -97,7 +98,7 @@ const styles = StyleSheet.create({
   taskName: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.textSecondary,
     textDecorationLine: 'line-through',
   },
   subRow: {
@@ -107,11 +108,11 @@ const styles = StyleSheet.create({
   },
   subText: {
     fontSize: 11,
-    color: '#9CA3AF',
+    color: colors.textTertiary,
     fontWeight: '500',
   },
   savedBadge: {
-    backgroundColor: '#D1FAE5',
+    backgroundColor: 'rgba(0,229,153,0.15)',
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -119,6 +120,6 @@ const styles = StyleSheet.create({
   savedText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#065F46',
+    color: colors.green,
   },
 });

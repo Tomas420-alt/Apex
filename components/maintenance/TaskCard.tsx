@@ -2,13 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { AlertTriangle, Wrench, Bike, ChevronRight, CheckCircle } from 'lucide-react-native';
 import { Id } from '../../convex/_generated/dataModel';
-
-const PRIORITY_COLORS: Record<string, { bg: string; text: string }> = {
-  critical: { bg: '#FEE2E2', text: '#991B1B' },
-  high: { bg: '#FED7AA', text: '#9A3412' },
-  medium: { bg: '#FEF3C7', text: '#92400E' },
-  low: { bg: '#E5E7EB', text: '#4B5563' },
-};
+import { colors } from '@/constants/theme';
 
 interface TaskCardProps {
   task: {
@@ -30,7 +24,7 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, bikeName, onPress, onComplete, isCompleting, currency }: TaskCardProps) {
-  const priorityStyle = PRIORITY_COLORS[task.priority] || PRIORITY_COLORS.low;
+  const priorityStyle = colors.priority[task.priority] || colors.priority.low;
   const isOverdue = task.status === 'overdue';
 
   const partsCost = task.estimatedCostUsd ?? 0;
@@ -53,24 +47,26 @@ export function TaskCard({ task, bikeName, onPress, onComplete, isCompleting, cu
           <View
             style={[
               styles.iconContainer,
-              isOverdue ? { backgroundColor: '#FEE2E2' } : { backgroundColor: '#F0FDF4' },
+              isOverdue
+                ? { backgroundColor: 'rgba(255,107,107,0.12)' }
+                : { backgroundColor: 'rgba(0,229,153,0.12)' },
             ]}
           >
             {isOverdue ? (
-              <AlertTriangle size={18} color="#EF4444" strokeWidth={2} />
+              <AlertTriangle size={18} color={colors.red} strokeWidth={2} />
             ) : (
-              <Wrench size={18} color="#10B981" strokeWidth={2} />
+              <Wrench size={18} color={colors.green} strokeWidth={2} />
             )}
           </View>
           <View style={styles.titleBlock}>
             <Text style={styles.taskName} numberOfLines={2}>{task.name}</Text>
             <View style={styles.bikeRow}>
-              <Bike size={11} color="#9CA3AF" />
+              <Bike size={11} color={colors.textTertiary} />
               <Text style={styles.bikeName}>{bikeName}</Text>
             </View>
           </View>
         </View>
-        <ChevronRight size={18} color="#9CA3AF" strokeWidth={2} />
+        <ChevronRight size={18} color={colors.textTertiary} strokeWidth={2} />
       </View>
 
       {/* Description */}
@@ -129,9 +125,9 @@ export function TaskCard({ task, bikeName, onPress, onComplete, isCompleting, cu
         disabled={isCompleting}
       >
         {isCompleting ? (
-          <ActivityIndicator size={14} color="#10B981" />
+          <ActivityIndicator size={14} color={colors.green} />
         ) : (
-          <CheckCircle size={14} color="#10B981" strokeWidth={2} />
+          <CheckCircle size={14} color={colors.green} strokeWidth={2} />
         )}
         <Text style={styles.completeButtonText}>Mark Complete</Text>
       </Pressable>
@@ -141,22 +137,17 @@ export function TaskCard({ task, bikeName, onPress, onComplete, isCompleting, cu
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    backgroundColor: colors.surface1,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
     gap: 10,
   },
   cardOverdue: {
     borderLeftWidth: 3,
-    borderLeftColor: '#EF4444',
+    borderLeftColor: colors.red,
   },
   header: {
     flexDirection: 'row',
@@ -183,7 +174,7 @@ const styles = StyleSheet.create({
   taskName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.textPrimary,
     lineHeight: 20,
   },
   bikeRow: {
@@ -193,12 +184,12 @@ const styles = StyleSheet.create({
   },
   bikeName: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: colors.textTertiary,
     fontWeight: '500',
   },
   description: {
     fontSize: 13,
-    color: '#6B7280',
+    color: colors.textSecondary,
     lineHeight: 19,
   },
   metaRow: {
@@ -218,12 +209,12 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   costRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.surface2,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 12,
@@ -236,27 +227,27 @@ const styles = StyleSheet.create({
   costDivider: {
     width: 1,
     height: 28,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border,
   },
   costLabel: {
     fontSize: 11,
-    color: '#9CA3AF',
+    color: colors.textTertiary,
     fontWeight: '500',
   },
   costValueGreen: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#10B981',
+    color: colors.green,
   },
   costValueGray: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   costValueSave: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#10B981',
+    color: colors.green,
   },
   completeButton: {
     flexDirection: 'row',
@@ -266,13 +257,13 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: 'rgba(0,229,153,0.12)',
     borderWidth: 1,
-    borderColor: '#BBF7D0',
+    borderColor: 'rgba(0,229,153,0.2)',
   },
   completeButtonText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#10B981',
+    color: colors.green,
   },
 });

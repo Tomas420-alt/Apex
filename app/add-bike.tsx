@@ -10,12 +10,14 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
 import { useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { router } from 'expo-router';
+import { colors } from '@/constants/theme';
 
 interface FormState {
   make: string;
@@ -94,6 +96,7 @@ export default function AddBikeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
       <KeyboardAvoidingView
         style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -106,7 +109,7 @@ export default function AddBikeScreen() {
             onPress={() => router.back()}
             activeOpacity={0.7}
           >
-            <ArrowLeft size={22} color="#1F2937" />
+            <ArrowLeft size={22} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Add Bike</Text>
           <View style={styles.headerSpacer} />
@@ -125,7 +128,7 @@ export default function AddBikeScreen() {
             <TextInput
               style={styles.input}
               placeholder="e.g. Honda, Yamaha, Kawasaki"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textTertiary}
               value={form.make}
               onChangeText={updateField('make')}
               autoCapitalize="words"
@@ -139,7 +142,7 @@ export default function AddBikeScreen() {
             <TextInput
               style={styles.input}
               placeholder="e.g. CBR600RR"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textTertiary}
               value={form.model}
               onChangeText={updateField('model')}
               autoCapitalize="characters"
@@ -153,7 +156,7 @@ export default function AddBikeScreen() {
             <TextInput
               style={styles.input}
               placeholder="e.g. 2023"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textTertiary}
               value={form.year}
               onChangeText={updateField('year')}
               keyboardType="numeric"
@@ -168,7 +171,7 @@ export default function AddBikeScreen() {
             <TextInput
               style={styles.input}
               placeholder="e.g. 12500"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textTertiary}
               value={form.mileage}
               onChangeText={updateField('mileage')}
               keyboardType="numeric"
@@ -182,7 +185,7 @@ export default function AddBikeScreen() {
             <TextInput
               style={styles.input}
               placeholder="YYYY-MM-DD"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textTertiary}
               value={form.lastServiceDate}
               onChangeText={updateField('lastServiceDate')}
               returnKeyType="next"
@@ -195,7 +198,7 @@ export default function AddBikeScreen() {
             <TextInput
               style={styles.input}
               placeholder="e.g. 10000"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textTertiary}
               value={form.lastServiceMileage}
               onChangeText={updateField('lastServiceMileage')}
               keyboardType="numeric"
@@ -209,7 +212,7 @@ export default function AddBikeScreen() {
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="Any additional details about your bike..."
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textTertiary}
               value={form.notes}
               onChangeText={updateField('notes')}
               multiline
@@ -241,7 +244,7 @@ export default function AddBikeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.bg,
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -252,14 +255,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
+    borderBottomColor: colors.border,
+    backgroundColor: colors.bg,
   },
   backButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.surface1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -268,7 +271,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 17,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
   headerSpacer: {
     width: 36,
@@ -279,7 +282,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 24,
     paddingTop: 24,
-    paddingBottom: 48,
+    paddingBottom: 120,
   },
   fieldGroup: {
     marginBottom: 20,
@@ -287,34 +290,34 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   required: {
-    color: '#EF4444',
+    color: colors.red,
   },
   input: {
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.surface1,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 10,
+    borderColor: colors.border,
+    borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
   textArea: {
     minHeight: 100,
     paddingTop: 12,
   },
   submitButton: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.green,
     borderRadius: 12,
     paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 12,
-    shadowColor: '#10B981',
+    shadowColor: colors.green,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,

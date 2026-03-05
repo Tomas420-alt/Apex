@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Pressable,
   Modal,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -15,6 +16,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 import { Bike, ChevronRight, Plus, Trash2, Wrench } from 'lucide-react-native';
+import { colors } from '@/constants/theme';
 
 interface BikeDoc {
   _id: Id<'bikes'>;
@@ -36,7 +38,7 @@ function BikeCard({ bike, onPress, onDelete }: BikeCardProps) {
     <View style={styles.card}>
       <TouchableOpacity style={styles.cardTouchArea} onPress={onPress} activeOpacity={0.7}>
         <View style={styles.cardIconContainer}>
-          <Bike size={22} color="#10B981" />
+          <Bike size={22} color={colors.green} />
         </View>
         <View style={styles.cardContent}>
           <Text style={styles.bikeName}>
@@ -48,24 +50,24 @@ function BikeCard({ bike, onPress, onDelete }: BikeCardProps) {
           </Text>
           {bike.nextService ? (
             <View style={styles.serviceBadge}>
-              <Wrench size={11} color="#10B981" style={styles.serviceBadgeIcon} />
+              <Wrench size={11} color={colors.green} style={styles.serviceBadgeIcon} />
               <Text style={styles.serviceBadgeText}>Next: {bike.nextService}</Text>
             </View>
           ) : null}
         </View>
-        <ChevronRight size={20} color="#9CA3AF" />
+        <ChevronRight size={20} color={colors.textTertiary} />
       </TouchableOpacity>
       <Pressable
         style={({ pressed }) => [
           styles.deleteButton,
-          pressed && { opacity: 0.5, backgroundColor: '#FEE2E2' },
+          pressed && { opacity: 0.5, backgroundColor: 'rgba(255,107,107,0.2)' },
         ]}
         onPress={() => {
           onDelete();
         }}
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
       >
-        <Trash2 size={16} color="#EF4444" />
+        <Trash2 size={16} color={colors.red} />
       </Pressable>
     </View>
   );
@@ -75,7 +77,7 @@ function EmptyGarage({ onAdd }: { onAdd: () => void }) {
   return (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIconWrapper}>
-        <Bike size={48} color="#9CA3AF" />
+        <Bike size={48} color={colors.textTertiary} />
       </View>
       <Text style={styles.emptyTitle}>No bikes yet</Text>
       <Text style={styles.emptySubtitle}>
@@ -115,25 +117,22 @@ export default function GarageScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
 
       <View style={styles.header}>
-        <Text style={styles.title}>My Garage</Text>
-        <Text style={styles.subtitle}>
-          {bikes.length === 0
-            ? 'No bikes added yet'
-            : bikes.length === 1
-            ? '1 bike'
-            : `${bikes.length} bikes`}
-        </Text>
-        {/* TEMP TEST BUTTON - REMOVE AFTER TESTING */}
-        <TouchableOpacity
-          style={{ backgroundColor: '#3B82F6', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 20, marginTop: 12, alignItems: 'center' }}
-          onPress={() => router.push('/onboarding' as any)}
-          activeOpacity={0.8}
-        >
-          <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '600' }}>Test Onboarding</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRow}>
+          <Image source={require('@/assets/images/icon.png')} style={styles.headerLogo} />
+          <View>
+            <Text style={styles.title}>My Garage</Text>
+            <Text style={styles.subtitle}>
+              {bikes.length === 0
+                ? 'No bikes added yet'
+                : bikes.length === 1
+                ? '1 bike'
+                : `${bikes.length} bikes`}
+            </Text>
+          </View>
+        </View>
       </View>
 
       {bikes.length === 0 ? (
@@ -203,26 +202,34 @@ export default function GarageScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.bg,
   },
   header: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.bg,
     paddingHorizontal: 24,
     paddingTop: 20,
     paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerLogo: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    marginRight: 12,
   },
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 4,
+    color: colors.textPrimary,
   },
   subtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.textSecondary,
     fontWeight: '500',
+    marginTop: 2,
   },
   listContainer: {
     flex: 1,
@@ -230,22 +237,17 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 100,
+    paddingBottom: 120,
   },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    backgroundColor: colors.surface1,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
     paddingRight: 12,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
     overflow: 'visible',
   },
   cardTouchArea: {
@@ -259,7 +261,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: 'rgba(0,229,153,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -271,11 +273,11 @@ const styles = StyleSheet.create({
   bikeName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
   bikeMeta: {
     fontSize: 13,
-    color: '#6B7280',
+    color: colors.textSecondary,
     fontWeight: '400',
   },
   serviceBadge: {
@@ -283,7 +285,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 4,
     alignSelf: 'flex-start',
-    backgroundColor: '#ECFDF5',
+    backgroundColor: 'rgba(0,229,153,0.12)',
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -293,7 +295,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 8,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: 'rgba(255,107,107,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
@@ -304,7 +306,7 @@ const styles = StyleSheet.create({
   },
   serviceBadgeText: {
     fontSize: 11,
-    color: '#10B981',
+    color: colors.green,
     fontWeight: '600',
   },
   emptyContainer: {
@@ -318,7 +320,7 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 24,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surface1,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
@@ -326,12 +328,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.textPrimary,
     marginBottom: 10,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 32,
@@ -339,7 +341,7 @@ const styles = StyleSheet.create({
   emptyButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#10B981',
+    backgroundColor: colors.green,
     borderRadius: 12,
     paddingHorizontal: 20,
     paddingVertical: 14,
@@ -352,15 +354,15 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: 28,
+    bottom: 100,
     right: 24,
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#10B981',
+    backgroundColor: colors.green,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#10B981',
+    shadowColor: colors.green,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,
@@ -368,13 +370,15 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalBox: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    backgroundColor: colors.surface2,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
     paddingHorizontal: 24,
     paddingTop: 24,
     paddingBottom: 20,
@@ -389,12 +393,12 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   modalMessage: {
     fontSize: 15,
-    color: '#6B7280',
+    color: colors.textSecondary,
     lineHeight: 22,
     marginBottom: 24,
   },
@@ -406,19 +410,19 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     borderRadius: 10,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surface1,
     alignItems: 'center',
   },
   modalCancelText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   modalDeleteBtn: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 10,
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.red,
     alignItems: 'center',
   },
   modalDeleteText: {

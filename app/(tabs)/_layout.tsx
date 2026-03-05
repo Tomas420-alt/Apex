@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import { useAuth } from '@clerk/clerk-expo';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
+import { colors } from '@/constants/theme';
 
 export default function TabLayout() {
   const { isSignedIn, isLoaded } = useAuth();
@@ -27,25 +28,36 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
+          backgroundColor: colors.surface1,
           borderTopWidth: 0,
-          elevation: 0,
-          shadowOpacity: 0,
-          height: Platform.OS === 'ios' ? 90 : 70,
-          paddingBottom: Platform.OS === 'ios' ? 30 : 12,
-          paddingTop: 12,
-          borderTopColor: 'transparent',
+          borderWidth: 1,
+          borderColor: colors.border,
+          borderRadius: 24,
+          position: 'absolute',
+          bottom: Platform.OS === 'ios' ? 28 : 16,
+          left: 20,
+          right: 20,
+          height: 64,
+          paddingBottom: 0,
+          paddingTop: 0,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 12,
+          elevation: 8,
         },
-        tabBarActiveTintColor: '#1F2937',
-        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarActiveTintColor: '#FFFFFF',
+        tabBarInactiveTintColor: colors.textTertiary,
         tabBarLabelStyle: {
-          fontSize: 13,
-          fontWeight: '500',
-          marginTop: 4,
-          marginBottom: Platform.OS === 'ios' ? 0 : 2,
+          fontSize: 11,
+          fontWeight: '600',
+          marginTop: 2,
         },
         tabBarIconStyle: {
-          marginBottom: Platform.OS === 'ios' ? 2 : 0,
+          marginBottom: -2,
+        },
+        sceneStyle: {
+          backgroundColor: colors.bg,
         },
       }}>
       <Tabs.Screen

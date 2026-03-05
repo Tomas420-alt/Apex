@@ -16,6 +16,7 @@ import { Send } from 'lucide-react-native';
 import { useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { router } from 'expo-router';
+import { colors } from '@/constants/theme';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -645,7 +646,7 @@ function TypingIndicator() {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#9CA3AF',
+    backgroundColor: colors.textTertiary,
     marginHorizontal: 3,
     opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }),
     transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [0, -4] }) }],
@@ -1153,7 +1154,7 @@ export default function OnboardingScreen() {
                 <TextInput
                   style={styles.textInput}
                   placeholder={resolvedPlaceholder}
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={colors.textTertiary}
                   value={inputText}
                   onChangeText={(t) => {
                     setInputText(t);
@@ -1171,7 +1172,7 @@ export default function OnboardingScreen() {
                   }}
                   disabled={!inputText.trim()}
                 >
-                  <Send size={18} color={inputText.trim() ? '#FFFFFF' : '#9CA3AF'} />
+                  <Send size={18} color={inputText.trim() ? '#FFFFFF' : colors.textTertiary} />
                 </TouchableOpacity>
               </View>
             )}
@@ -1192,7 +1193,7 @@ export default function OnboardingScreen() {
               <TextInput
                 style={styles.textInput}
                 placeholder={resolvedPlaceholder ?? 'Type your answer...'}
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textTertiary}
                 value={inputText}
                 onChangeText={(t) => {
                   setInputText(t);
@@ -1214,7 +1215,7 @@ export default function OnboardingScreen() {
                 }}
                 disabled={!inputText.trim()}
               >
-                <Send size={18} color={inputText.trim() ? '#FFFFFF' : '#9CA3AF'} />
+                <Send size={18} color={inputText.trim() ? '#FFFFFF' : colors.textTertiary} />
               </TouchableOpacity>
             </View>
           </View>
@@ -1223,7 +1224,7 @@ export default function OnboardingScreen() {
         {/* Saving indicator */}
         {isSaving && (
           <View style={styles.savingContainer}>
-            <ActivityIndicator color="#10B981" size="small" />
+            <ActivityIndicator color={colors.green} size="small" />
             <Text style={styles.savingText}>Setting things up...</Text>
           </View>
         )}
@@ -1237,18 +1238,18 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.bg,
   },
   flex: {
     flex: 1,
   },
   progressTrack: {
     height: 3,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.surface1,
   },
   progressFill: {
     height: 3,
-    backgroundColor: '#10B981',
+    backgroundColor: colors.green,
     borderRadius: 1.5,
   },
   chatArea: {
@@ -1275,11 +1276,11 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   botBubble: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surface1,
     borderBottomLeftRadius: 4,
   },
   userBubble: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.green,
     borderBottomRightRadius: 4,
   },
   bubbleText: {
@@ -1287,7 +1288,7 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   botText: {
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
   userText: {
     color: '#FFFFFF',
@@ -1304,8 +1305,8 @@ const styles = StyleSheet.create({
   // Choices
   choicesContainer: {
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
+    borderTopColor: colors.border,
+    backgroundColor: colors.bg,
     paddingTop: 12,
     paddingBottom: Platform.OS === 'ios' ? 8 : 12,
   },
@@ -1314,9 +1315,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   choiceChip: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface1,
     borderWidth: 1.5,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     borderRadius: 20,
     paddingHorizontal: 18,
     paddingVertical: 10,
@@ -1324,11 +1325,11 @@ const styles = StyleSheet.create({
   choiceChipText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
   // Period dropdown (inline in bot bubble)
   periodDropdownText: {
-    color: '#10B981',
+    color: colors.green,
     fontWeight: '700',
     textDecorationLine: 'underline',
     fontSize: 15,
@@ -1336,10 +1337,10 @@ const styles = StyleSheet.create({
   periodDropdown: {
     flexDirection: 'row',
     marginTop: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface1,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     overflow: 'hidden',
   },
   periodDropdownItem: {
@@ -1348,12 +1349,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   periodDropdownItemActive: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.green,
   },
   periodDropdownItemText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   periodDropdownItemTextActive: {
     color: '#FFFFFF',
@@ -1364,7 +1365,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginHorizontal: 16,
     marginBottom: 10,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surface1,
     borderRadius: 10,
     padding: 3,
     alignSelf: 'flex-start',
@@ -1375,7 +1376,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   unitToggleBtnActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -1385,17 +1386,17 @@ const styles = StyleSheet.create({
   unitToggleText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.textTertiary,
   },
   unitToggleTextActive: {
-    color: '#1F2937',
+    color: colors.textPrimary,
     fontWeight: '600',
   },
   // Text input
   inputContainer: {
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
+    borderTopColor: colors.border,
+    backgroundColor: colors.bg,
     paddingTop: 8,
     paddingBottom: Platform.OS === 'ios' ? 8 : 12,
     paddingHorizontal: 16,
@@ -1409,38 +1410,38 @@ const styles = StyleSheet.create({
   },
   textInput: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.surface1,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     borderRadius: 22,
     paddingHorizontal: 18,
     paddingVertical: 10,
     fontSize: 15,
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
   sendButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#10B981',
+    backgroundColor: colors.green,
     alignItems: 'center',
     justifyContent: 'center',
   },
   sendButtonDisabled: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.surface2,
   },
   inputError: {
-    color: '#EF4444',
+    color: colors.red,
     fontSize: 13,
     paddingHorizontal: 20,
     paddingBottom: 6,
   },
   // Summary
   summaryCard: {
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.surface1,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     padding: 16,
     marginTop: 4,
     maxWidth: '90%',
@@ -1450,16 +1451,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 6,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.border,
   },
   summaryLabel: {
     fontSize: 13,
-    color: '#6B7280',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   summaryValue: {
     fontSize: 13,
-    color: '#1F2937',
+    color: colors.textPrimary,
     fontWeight: '600',
     maxWidth: '60%',
     textAlign: 'right',
@@ -1472,11 +1473,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     gap: 10,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: colors.border,
   },
   savingText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
 });

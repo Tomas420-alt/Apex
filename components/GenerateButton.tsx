@@ -11,6 +11,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { colors } from '@/constants/theme';
 
 // ─── Custom Sparkles with orbiting secondary stars ───────────────────────────
 
@@ -136,7 +137,7 @@ export function GenerateButton({
 }: GenerateButtonProps) {
   const isPrimary = variant === 'primary';
   const iconSize = isPrimary ? 18 : 14;
-  const iconColor = isPrimary ? '#FFFFFF' : '#6B7280';
+  const iconColor = isPrimary ? '#FFFFFF' : colors.textSecondary;
 
   // Subtle button breathing while loading
   const buttonScale = useSharedValue(1);
@@ -190,12 +191,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#10B981',
+    backgroundColor: colors.green,
     borderRadius: 12,
     paddingHorizontal: 28,
     paddingVertical: 14,
     overflow: 'visible',
-    shadowColor: '#10B981',
+    shadowColor: colors.green,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -207,11 +208,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     borderRadius: 10,
     paddingVertical: 12,
     overflow: 'visible',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface1,
   },
   disabledButton: {
     opacity: 0.65,
@@ -224,6 +225,6 @@ const styles = StyleSheet.create({
   secondaryText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
 });

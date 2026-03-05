@@ -1,6 +1,7 @@
 import React from 'react';
 import { ScrollView, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { Id } from '../../convex/_generated/dataModel';
+import { colors } from '@/constants/theme';
 
 interface BikeFilterChipsProps {
   bikes: { _id: Id<'bikes'>; make: string; model: string }[];
@@ -52,20 +53,23 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   chip: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surface1,
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   chipSelected: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
   },
   chipText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   chipTextSelected: {
-    color: '#FFFFFF',
+    color: colors.bg,
   },
 });

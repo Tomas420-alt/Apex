@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { AlertTriangle, Clock, CheckCircle } from 'lucide-react-native';
 import { CurrencyIcon } from '../CurrencyIcon';
+import { colors } from '@/constants/theme';
 
 interface SummaryCardsProps {
   overdueCount: number;
@@ -21,45 +22,53 @@ export function SummaryCards({
   currencyIconName,
 }: SummaryCardsProps) {
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.container}
-    >
-      <View style={[styles.card, { borderTopColor: '#EF4444' }]}>
-        <View style={[styles.icon, { backgroundColor: '#FEE2E2' }]}>
-          <AlertTriangle size={20} color="#EF4444" strokeWidth={2} />
+    <View style={styles.container}>
+      <View style={styles.row}>
+        <View style={[styles.card, { borderLeftColor: colors.red }]}>
+          <View style={[styles.icon, { backgroundColor: 'rgba(255,107,107,0.12)' }]}>
+            <AlertTriangle size={18} color={colors.red} strokeWidth={2} />
+          </View>
+          <View style={styles.cardText}>
+            <Text style={styles.count}>{overdueCount}</Text>
+            <Text style={styles.label}>Overdue</Text>
+          </View>
         </View>
-        <Text style={styles.count}>{overdueCount}</Text>
-        <Text style={styles.label}>Overdue</Text>
+
+        <View style={[styles.card, { borderLeftColor: colors.orange }]}>
+          <View style={[styles.icon, { backgroundColor: 'rgba(255,159,67,0.12)' }]}>
+            <Clock size={18} color={colors.orange} strokeWidth={2} />
+          </View>
+          <View style={styles.cardText}>
+            <Text style={styles.count}>{dueCount}</Text>
+            <Text style={styles.label}>Due Soon</Text>
+          </View>
+        </View>
       </View>
 
-      <View style={[styles.card, { borderTopColor: '#F59E0B' }]}>
-        <View style={[styles.icon, { backgroundColor: '#FEF3C7' }]}>
-          <Clock size={20} color="#F59E0B" strokeWidth={2} />
+      <View style={styles.row}>
+        <View style={[styles.card, { borderLeftColor: colors.green }]}>
+          <View style={[styles.icon, { backgroundColor: 'rgba(0,229,153,0.12)' }]}>
+            <CheckCircle size={18} color={colors.green} strokeWidth={2} />
+          </View>
+          <View style={styles.cardText}>
+            <Text style={styles.count}>{completedCount}</Text>
+            <Text style={styles.label}>Completed</Text>
+          </View>
         </View>
-        <Text style={styles.count}>{dueCount}</Text>
-        <Text style={styles.label}>Due Soon</Text>
-      </View>
 
-      <View style={[styles.card, { borderTopColor: '#10B981' }]}>
-        <View style={[styles.icon, { backgroundColor: '#D1FAE5' }]}>
-          <CheckCircle size={20} color="#10B981" strokeWidth={2} />
+        <View style={[styles.card, { borderLeftColor: colors.green }]}>
+          <View style={[styles.icon, { backgroundColor: 'rgba(0,229,153,0.12)' }]}>
+            <CurrencyIcon iconName={currencyIconName} fallbackSymbol={currency} size={18} color={colors.green} />
+          </View>
+          <View style={styles.cardText}>
+            <Text style={[styles.count, { color: colors.green }]}>
+              {currency}{Math.round(totalSavings)}
+            </Text>
+            <Text style={styles.label}>Saved</Text>
+          </View>
         </View>
-        <Text style={styles.count}>{completedCount}</Text>
-        <Text style={styles.label}>Completed</Text>
       </View>
-
-      <View style={[styles.card, { borderTopColor: '#10B981' }]}>
-        <View style={[styles.icon, { backgroundColor: '#D1FAE5' }]}>
-          <CurrencyIcon iconName={currencyIconName} fallbackSymbol={currency} size={20} color="#10B981" />
-        </View>
-        <Text style={[styles.count, { color: '#10B981' }]}>
-          {currency}{Math.round(totalSavings)}
-        </Text>
-        <Text style={styles.label}>Saved</Text>
-      </View>
-    </ScrollView>
+    </View>
   );
 }
 
@@ -67,40 +76,43 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 24,
     paddingBottom: 20,
-    gap: 12,
+    gap: 10,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 10,
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface1,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderTopWidth: 3,
-    padding: 16,
-    width: 110,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    borderColor: colors.border,
+    borderLeftWidth: 3,
+    padding: 14,
+    gap: 12,
   },
   icon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+  },
+  cardText: {
+    flex: 1,
   },
   count: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 2,
+    color: colors.textPrimary,
   },
   label: {
-    fontSize: 12,
-    color: '#6B7280',
+    fontSize: 11,
+    color: colors.textSecondary,
     fontWeight: '500',
+    marginTop: 1,
   },
 });

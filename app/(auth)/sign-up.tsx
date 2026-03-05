@@ -14,6 +14,7 @@ import {
 import { useSignUp, useOAuth } from "@clerk/clerk-expo";
 import { useRouter, Link } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
+import { colors } from "@/constants/theme";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -126,7 +127,7 @@ export default function SignUpScreen() {
           <TextInput
             style={styles.input}
             placeholder="Email"
-            placeholderTextColor="#999"
+            placeholderTextColor={colors.textTertiary}
             value={emailAddress}
             onChangeText={setEmailAddress}
             autoCapitalize="none"
@@ -136,7 +137,7 @@ export default function SignUpScreen() {
           <TextInput
             style={styles.input}
             placeholder="Password"
-            placeholderTextColor="#999"
+            placeholderTextColor={colors.textTertiary}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -193,7 +194,7 @@ export default function SignUpScreen() {
             <TextInput
               style={styles.input}
               placeholder="Verification Code"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.textTertiary}
               value={code}
               onChangeText={setCode}
               keyboardType="number-pad"
@@ -227,7 +228,7 @@ export default function SignUpScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: colors.bg,
   },
   content: {
     flex: 1,
@@ -237,29 +238,30 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: "bold",
-    color: "#333",
+    color: colors.textPrimary,
     marginBottom: 8,
     textAlign: "center",
   },
   subtitle: {
     fontSize: 16,
-    color: "#666",
+    color: colors.textSecondary,
     marginBottom: 40,
     textAlign: "center",
   },
   input: {
-    backgroundColor: "#fff",
-    borderRadius: 8,
+    backgroundColor: colors.surface1,
+    borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
+    color: colors.textPrimary,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#e0e0e0",
+    borderColor: colors.border,
   },
   button: {
-    backgroundColor: "#007AFF",
-    borderRadius: 8,
+    backgroundColor: colors.green,
+    borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
     marginTop: 8,
@@ -278,37 +280,39 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   footerText: {
-    color: "#666",
+    color: colors.textSecondary,
     fontSize: 14,
   },
   link: {
-    color: "#007AFF",
+    color: colors.green,
     fontSize: 14,
     fontWeight: "600",
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: colors.overlay,
     justifyContent: "center",
     alignItems: "center",
   },
   modalContent: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
+    backgroundColor: colors.surface2,
+    borderRadius: 20,
     padding: 24,
     width: "90%",
     maxWidth: 400,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   modalTitle: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#333",
+    color: colors.textPrimary,
     marginBottom: 8,
     textAlign: "center",
   },
   modalSubtitle: {
     fontSize: 14,
-    color: "#666",
+    color: colors.textSecondary,
     marginBottom: 24,
     textAlign: "center",
   },
@@ -317,7 +321,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   cancelButtonText: {
-    color: "#666",
+    color: colors.textSecondary,
     fontSize: 16,
   },
   divider: {
@@ -328,37 +332,37 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "#e0e0e0",
+    backgroundColor: colors.border,
   },
   dividerText: {
     marginHorizontal: 16,
-    color: "#666",
+    color: colors.textTertiary,
     fontSize: 14,
   },
   googleButton: {
-    backgroundColor: "#fff",
-    borderRadius: 8,
+    backgroundColor: colors.surface1,
+    borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#e0e0e0",
+    borderColor: colors.border,
     marginBottom: 16,
   },
   googleButtonText: {
-    color: "#333",
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: "600",
   },
   errorContainer: {
-    backgroundColor: "#ffebee",
+    backgroundColor: "rgba(255,107,107,0.1)",
     borderRadius: 8,
     padding: 12,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#ef5350",
+    borderColor: "rgba(255,107,107,0.3)",
   },
   errorText: {
-    color: "#c62828",
+    color: colors.red,
     fontSize: 14,
     textAlign: "center",
   },

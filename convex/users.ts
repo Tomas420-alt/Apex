@@ -64,7 +64,67 @@ export const upsertFromClerk = internalMutation({
   },
 });
 
-// Delete user and their todos (internal only)
+// Update user notification preferences and phone number
+export const updatePreferences = mutation({
+  args: {
+    phone: v.optional(v.string()),
+    notificationPreferences: v.optional(
+      v.object({
+        push: v.boolean(),
+        sms: v.boolean(),
+        email: v.boolean(),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", q => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!user) throw new Error("User not found");
+
+    const patch: Record<string, unknown> = {};
+    if (args.phone !== undefined) patch.phone = args.phone;
+    if (args.notificationPreferences !== undefined) {
+      patch.notificationPreferences = args.notificationPreferences;
+    }
+
+    await ctx.db.patch(user._id, patch);
+  },
+});
+
+// Update user country (called immediately during onboarding)
+export const updateCountry = mutation({
+  args: { country: v.string() },
+  handler: async (ctx, { country }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    let user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", q => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!user) {
+      // Auto-create user if doesn't exist yet
+      const userId = await ctx.db.insert("users", {
+        clerkId: identity.subject,
+        email: identity.email,
+        name: identity.name,
+        country,
+      });
+      return userId;
+    }
+
+    await ctx.db.patch(user._id, { country });
+  },
+});
+
+// Delete user and their data (internal only)
 export const deleteUser = internalMutation({
   args: { clerkId: v.string() },
   handler: async (ctx, { clerkId }) => {
@@ -75,14 +135,14 @@ export const deleteUser = internalMutation({
 
     if (!user) return;
 
-    // Delete all user's todos
-    const todos = await ctx.db
-      .query("todos")
+    // Delete all user's bikes
+    const bikes = await ctx.db
+      .query("bikes")
       .withIndex("by_user", q => q.eq("userId", clerkId))
       .collect();
 
-    for (const todo of todos) {
-      await ctx.db.delete(todo._id);
+    for (const bike of bikes) {
+      await ctx.db.delete(bike._id);
     }
 
     // Delete user

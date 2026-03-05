@@ -8,9 +8,16 @@
  * @module
  */
 
+import type * as ai from "../ai.js";
 import type * as auth from "../auth.js";
+import type * as bikes from "../bikes.js";
 import type * as http from "../http.js";
-import type * as todos from "../todos.js";
+import type * as maintenancePlans from "../maintenancePlans.js";
+import type * as maintenanceTasks from "../maintenanceTasks.js";
+import type * as notifications from "../notifications.js";
+import type * as onboarding from "../onboarding.js";
+import type * as parts from "../parts.js";
+import type * as reminders from "../reminders.js";
 import type * as users from "../users.js";
 
 import type {
@@ -20,9 +27,16 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  ai: typeof ai;
   auth: typeof auth;
+  bikes: typeof bikes;
   http: typeof http;
-  todos: typeof todos;
+  maintenancePlans: typeof maintenancePlans;
+  maintenanceTasks: typeof maintenanceTasks;
+  notifications: typeof notifications;
+  onboarding: typeof onboarding;
+  parts: typeof parts;
+  reminders: typeof reminders;
   users: typeof users;
 }>;
 

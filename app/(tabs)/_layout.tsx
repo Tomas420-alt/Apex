@@ -1,10 +1,13 @@
 import { Tabs, Redirect } from 'expo-router';
-import { SquareCheck as CheckSquare, Settings } from 'lucide-react-native';
+import { Bike, Wrench, Settings } from 'lucide-react-native';
 import { Platform } from 'react-native';
 import { useAuth } from '@clerk/clerk-expo';
+import { useQuery } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 
 export default function TabLayout() {
   const { isSignedIn, isLoaded } = useAuth();
+  const user = useQuery(api.users.getCurrent);
 
   if (!isLoaded) {
     return null;
@@ -12,6 +15,11 @@ export default function TabLayout() {
 
   if (!isSignedIn) {
     return <Redirect href="/(auth)/sign-in" />;
+  }
+
+  // Redirect to onboarding if user hasn't completed it
+  if (user && !user.hasCompletedOnboarding) {
+    return <Redirect href="/onboarding" />;
   }
 
   return (
@@ -43,9 +51,18 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Todos',
+          title: 'Garage',
           tabBarIcon: ({ size, color }) => (
-            <CheckSquare size={size} color={color} strokeWidth={2} />
+            <Bike size={size} color={color} strokeWidth={2} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="maintenance"
+        options={{
+          title: 'Maintenance',
+          tabBarIcon: ({ size, color }) => (
+            <Wrench size={size} color={color} strokeWidth={2} />
           ),
         }}
       />

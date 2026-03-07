@@ -34,7 +34,23 @@ export default defineSchema({
     storageType: v.optional(v.string()),
     experienceLevel: v.optional(v.string()),
     maintenanceComfort: v.optional(v.string()),
+    inspectionStatus: v.optional(v.string()), // "pending" | "complete"
   }).index("by_user", ["userId"]),
+
+  inspectionItems: defineTable({
+    bikeId: v.id("bikes"),
+    userId: v.string(),
+    name: v.string(),
+    description: v.string(),
+    category: v.string(),
+    responseType: v.string(),    // "choice" | "number" | "text"
+    options: v.optional(v.array(v.string())),
+    unit: v.optional(v.string()),
+    response: v.optional(v.string()),
+    order: v.number(),
+  })
+    .index("by_bike", ["bikeId"])
+    .index("by_user", ["userId"]),
 
   maintenancePlans: defineTable({
     bikeId: v.id("bikes"),

@@ -32,6 +32,7 @@ import {
   RefreshCw,
 } from 'lucide-react-native';
 import { GenerateButton } from '../../components/GenerateButton';
+import { InspectionChecklist } from '../../components/InspectionChecklist';
 import { getCurrencySymbol, getCurrencyIconName } from '../../utils/currency';
 import { CurrencyIcon } from '../../components/CurrencyIcon';
 import { colors } from '@/constants/theme';
@@ -65,6 +66,7 @@ interface BikeDoc {
   lastServiceDate?: string;
   lastServiceMileage?: number;
   notes?: string;
+  inspectionStatus?: string;
 }
 
 // ─── Priority config ──────────────────────────────────────────────────────────
@@ -191,10 +193,12 @@ function TaskCard({
           </View>
         ) : null}
 
-        {task.dueDate ? (
+        {task.dueDate && /^\d{4}-\d{2}-\d{2}/.test(task.dueDate) ? (
           <View style={styles.metaItem}>
             <Calendar size={12} color={colors.textSecondary} />
-            <Text style={styles.metaText}>{task.dueDate}</Text>
+            <Text style={styles.metaText}>
+              {new Date(task.dueDate + 'T00:00:00').toLocaleDateString()}
+            </Text>
           </View>
         ) : null}
       </View>
@@ -398,6 +402,7 @@ export default function BikeDetailScreen() {
   const updateMileage = useMutation(api.bikes.updateMileage);
   const completeTask = useMutation(api.maintenanceTasks.complete);
   const generatePlan = useMutation(api.bikes.generatePlan);
+  const resetForInspection = useMutation(api.inspectionMutations.resetForInspection);
 
   const [mileageModalVisible, setMileageModalVisible] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -511,16 +516,21 @@ export default function BikeDetailScreen() {
     );
   }
 
-  // ── Sort tasks: overdue first, then due, then pending, then completed ─────────
+  // ── Sort tasks: completed/skipped at bottom, everything else by mileage then date
   const sortedTasks = [...tasks].sort((a, b) => {
-    const order: Record<string, number> = {
-      overdue: 0,
-      due: 1,
-      pending: 2,
-      completed: 3,
-      skipped: 4,
-    };
-    return (order[a.status] ?? 5) - (order[b.status] ?? 5);
+    const aDone = a.status === 'completed' || a.status === 'skipped' ? 1 : 0;
+    const bDone = b.status === 'completed' || b.status === 'skipped' ? 1 : 0;
+    if (aDone !== bDone) return aDone - bDone;
+
+    // Sort by due mileage ascending
+    const aMileage = a.dueMileage ?? Infinity;
+    const bMileage = b.dueMileage ?? Infinity;
+    if (aMileage !== bMileage) return aMileage - bMileage;
+
+    // Then by due date
+    const aDate = a.dueDate ?? '';
+    const bDate = b.dueDate ?? '';
+    return aDate.localeCompare(bDate);
   });
 
   const completedCount = tasks.filter((t) => t.status === 'completed').length;
@@ -554,7 +564,8 @@ export default function BikeDetailScreen() {
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={true}
+        keyboardShouldPersistTaps="handled"
       >
         {/* ── Bike Info Card ── */}
         <View style={styles.bikeInfoCard}>
@@ -636,7 +647,21 @@ export default function BikeDetailScreen() {
           ) : null}
         </View>
 
-        {!plan ? (
+        {!plan && bike && !bike.lastServiceDate && bike.inspectionStatus !== 'complete' ? (
+          <InspectionChecklist
+            bikeId={bikeId}
+            inspectionStatus={bike.inspectionStatus}
+          />
+        ) : !plan && bike.inspectionStatus === 'complete' ? (
+          /* Inspection done, plan is being generated — show loading, not the generate button */
+          <View style={styles.emptyPlanContainer}>
+            <ActivityIndicator size="large" color={colors.green} />
+            <Text style={styles.emptyPlanTitle}>Generating Maintenance Plan</Text>
+            <Text style={styles.emptyPlanSubtitle}>
+              Using your inspection results to create a tailored plan...
+            </Text>
+          </View>
+        ) : !plan ? (
           <EmptyPlan
             isGenerating={isGenerating}
             onGenerate={handleGeneratePlan}
@@ -712,6 +737,17 @@ export default function BikeDetailScreen() {
             <ChevronRight size={18} color="#FFFFFF" />
           </TouchableOpacity>
         ) : null}
+
+        {/* TEMP: Reset for inspection testing */}
+        <TouchableOpacity
+          style={{ backgroundColor: colors.red, borderRadius: 12, padding: 14, marginTop: 16, alignItems: 'center' }}
+          onPress={async () => {
+            await resetForInspection({ bikeId });
+          }}
+          activeOpacity={0.7}
+        >
+          <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 14 }}>TEMP: Reset for Inspection</Text>
+        </TouchableOpacity>
       </ScrollView>
 
       {/* ── Update Mileage Modal ── */}
@@ -814,7 +850,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 20,
-    paddingBottom: 40,
+    paddingBottom: 120,
     gap: 16,
   },
 
@@ -1175,6 +1211,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 15,
     marginTop: 8,
+    marginHorizontal: 4,
   },
   allPartsButtonText: {
     fontSize: 15,

@@ -44,7 +44,6 @@ export default function SignInScreen() {
       } else {
         console.error(JSON.stringify(signInAttempt, null, 2));
         setErrorMessage("Sign in failed. Please try again.");
-        Alert.alert("Error", "Sign in failed. Please try again.");
       }
     } catch (err: any) {
       console.error(JSON.stringify(err, null, 2));
@@ -64,7 +63,6 @@ export default function SignInScreen() {
       }
       
       setErrorMessage(errorMessage);
-      Alert.alert("Sign In Failed", errorMessage);
     } finally {
       setLoading(false);
     }

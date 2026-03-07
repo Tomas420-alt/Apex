@@ -23,9 +23,17 @@ interface TaskCardProps {
   currency: string;
 }
 
+const PRIORITY_ICON_COLORS: Record<string, { icon: string; bg: string }> = {
+  critical: { icon: '#FF6B6B', bg: 'rgba(255,107,107,0.12)' },
+  high: { icon: '#FF9F43', bg: 'rgba(255,159,67,0.12)' },
+  medium: { icon: '#A855F7', bg: 'rgba(168,85,247,0.12)' },
+  low: { icon: '#8E8EA0', bg: 'rgba(142,142,160,0.12)' },
+};
+
 export function TaskCard({ task, bikeName, onPress, onComplete, isCompleting, currency }: TaskCardProps) {
   const priorityStyle = colors.priority[task.priority] || colors.priority.low;
   const isOverdue = task.status === 'overdue';
+  const iconColors = PRIORITY_ICON_COLORS[task.priority] || PRIORITY_ICON_COLORS.low;
 
   const partsCost = task.estimatedCostUsd ?? 0;
   const laborCost = task.estimatedLaborCostUsd ?? 0;
@@ -36,7 +44,7 @@ export function TaskCard({ task, bikeName, onPress, onComplete, isCompleting, cu
     <Pressable
       style={({ pressed }) => [
         styles.card,
-        isOverdue && styles.cardOverdue,
+        { borderLeftWidth: 3, borderLeftColor: iconColors.icon },
         pressed && { opacity: 0.95 },
       ]}
       onPress={onPress}
@@ -47,15 +55,13 @@ export function TaskCard({ task, bikeName, onPress, onComplete, isCompleting, cu
           <View
             style={[
               styles.iconContainer,
-              isOverdue
-                ? { backgroundColor: 'rgba(255,107,107,0.12)' }
-                : { backgroundColor: 'rgba(0,229,153,0.12)' },
+              { backgroundColor: iconColors.bg },
             ]}
           >
             {isOverdue ? (
-              <AlertTriangle size={18} color={colors.red} strokeWidth={2} />
+              <AlertTriangle size={18} color={iconColors.icon} strokeWidth={2} />
             ) : (
-              <Wrench size={18} color={colors.green} strokeWidth={2} />
+              <Wrench size={18} color={iconColors.icon} strokeWidth={2} />
             )}
           </View>
           <View style={styles.titleBlock}>
@@ -79,8 +85,8 @@ export function TaskCard({ task, bikeName, onPress, onComplete, isCompleting, cu
         <View style={[styles.badge, { backgroundColor: priorityStyle.bg }]}>
           <Text style={[styles.badgeText, { color: priorityStyle.text }]}>{task.priority}</Text>
         </View>
-        {task.dueDate ? (
-          <Text style={styles.metaText}>Due: {new Date(task.dueDate).toLocaleDateString()}</Text>
+        {task.dueDate && /^\d{4}-\d{2}-\d{2}/.test(task.dueDate) ? (
+          <Text style={styles.metaText}>Due: {new Date(task.dueDate + 'T00:00:00').toLocaleDateString()}</Text>
         ) : null}
         {task.dueMileage ? (
           <Text style={styles.metaText}>{task.dueMileage.toLocaleString()} km</Text>
@@ -144,10 +150,6 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
     gap: 10,
-  },
-  cardOverdue: {
-    borderLeftWidth: 3,
-    borderLeftColor: colors.red,
   },
   header: {
     flexDirection: 'row',

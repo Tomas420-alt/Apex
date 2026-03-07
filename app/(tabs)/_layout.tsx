@@ -18,8 +18,13 @@ export default function TabLayout() {
     return <Redirect href="/(auth)/sign-in" />;
   }
 
-  // Redirect to onboarding if user hasn't completed it
-  if (user && !user.hasCompletedOnboarding) {
+  // Wait for user query to load
+  if (user === undefined) {
+    return null;
+  }
+
+  // Redirect to onboarding if user doesn't exist yet or hasn't completed it
+  if (user === null || !user.hasCompletedOnboarding) {
     return <Redirect href="/onboarding" />;
   }
 

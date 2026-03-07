@@ -175,7 +175,7 @@ export const sendReminder = internalAction({
         throw new Error(`User ${userId} has no phone number on file for SMS reminder`);
       }
 
-      const smsBody = `Apex Reminder: "${taskName}" is due for your ${bikeName}. Open the app to view details.`;
+      const smsBody = `Apex Reminder: "${taskName}" is due soon for your ${bikeName}. Time to order parts! Open the app to view details.`;
       const e164Phone = toE164(user.phone, user.country ?? undefined);
 
       const result = await ctx.runAction(internal.notifications.sendSMS, {
@@ -202,22 +202,24 @@ export const sendReminder = internalAction({
         throw new Error(`User ${userId} has no email address on file for email reminder`);
       }
 
-      const subject = `ApexTune: "${taskName}" is due for your ${bikeName}`;
+      const subject = `Apex: "${taskName}" is due in 1 week — order parts now`;
       const html = `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #1F2937;">Maintenance Reminder</h2>
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #0D0D12; color: #FFFFFF; padding: 32px; border-radius: 16px;">
+          <h2 style="color: #00E599; margin-bottom: 16px;">Maintenance Reminder</h2>
           <p>Hi there,</p>
           <p>
-            Your maintenance task <strong>${taskName}</strong> is due for your
+            Your maintenance task <strong>${taskName}</strong> is due in about 1 week for your
             <strong>${bikeName}</strong>.
           </p>
-          <p>Open ApexTune to view the full details and mark the task complete.</p>
-          <p style="color: #9CA3AF; font-size: 12px;">
-            You are receiving this email because you enabled email reminders in ApexTune.
+          <p style="color: #00E599; font-weight: 600;">Now is the perfect time to order parts so they arrive before the job is due.</p>
+          <p>Open Apex to view the parts list and get started.</p>
+          <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 24px 0;" />
+          <p style="color: #8E8EA0; font-size: 12px;">
+            You are receiving this email because you enabled email reminders in Apex.
           </p>
         </div>
       `;
-      const text = `ApexTune Reminder: "${taskName}" is due for your ${bikeName}. Open the app to view details.`;
+      const text = `Apex Reminder: "${taskName}" is due in about 1 week for your ${bikeName}. Time to order parts! Open the app to view the parts list.`;
 
       const result = await ctx.runAction(internal.notifications.sendEmail, {
         to: user.email,

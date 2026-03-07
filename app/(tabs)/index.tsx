@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 import { Bike, ChevronRight, Plus, Trash2, Wrench } from 'lucide-react-native';
 import { colors } from '@/constants/theme';
+import { MaintenanceCalendar } from '../../components/MaintenanceCalendar';
 
 interface BikeDoc {
   _id: Id<'bikes'>;
@@ -96,6 +97,34 @@ export default function GarageScreen() {
   const bikes = (useQuery(api.bikes.list) ?? []) as BikeDoc[];
   const removeBike = useMutation(api.bikes.remove);
   const [bikeToDelete, setBikeToDelete] = useState<BikeDoc | null>(null);
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
+
+  // Always start from the 1st of the current real month
+  const calendarStartDate = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  }, []);
+
+  // End date = 2 months ahead of whichever month the user is currently viewing
+  const calendarEndDate = useMemo(() => {
+    const y = calendarMonth.getFullYear();
+    const m = calendarMonth.getMonth();
+    const endMonth = new Date(y, m + 3, 0); // last day of viewed month + 2
+    return `${endMonth.getFullYear()}-${String(endMonth.getMonth() + 1).padStart(2, '0')}-${String(endMonth.getDate()).padStart(2, '0')}`;
+  }, [calendarMonth]);
+
+  const calendarTasks = useQuery(
+    api.maintenanceTasks.listForCalendar,
+    bikes.length > 0 ? { startDate: calendarStartDate, endDate: calendarEndDate } : 'skip'
+  );
+
+  const bikeNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const bike of bikes) {
+      map.set(bike._id, `${bike.make} ${bike.model}`);
+    }
+    return map;
+  }, [bikes]);
 
   const handleBikePress = (id: Id<'bikes'>) => {
     router.push(`/bike/${id}` as any);
@@ -151,6 +180,15 @@ export default function GarageScreen() {
               onDelete={() => setBikeToDelete(bike)}
             />
           ))}
+
+          {/* Maintenance Calendar */}
+          <MaintenanceCalendar
+            tasks={calendarTasks}
+            bikeNameMap={bikeNameMap}
+            currentMonth={calendarMonth}
+            onMonthChange={setCalendarMonth}
+            onTaskPress={(bikeId) => router.push(`/bike/${bikeId}` as any)}
+          />
         </ScrollView>
       )}
 

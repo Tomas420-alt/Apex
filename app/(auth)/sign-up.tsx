@@ -51,10 +51,8 @@ export default function SignUpScreen() {
         setPendingVerification(true);
       }
     } catch (err: any) {
-      console.error(JSON.stringify(err, null, 2));
-      const message = err.errors?.[0]?.message || "Sign up failed";
+      const message = err.errors?.[0]?.longMessage || err.errors?.[0]?.message || "Sign up failed";
       setErrorMessage(message);
-      Alert.alert("Error", message);
     } finally {
       setLoading(false);
     }

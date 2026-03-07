@@ -40,7 +40,7 @@ export function SummaryCards({
           </View>
           <View style={styles.cardText}>
             <Text style={styles.count}>{dueCount}</Text>
-            <Text style={styles.label}>Due Soon</Text>
+            <Text style={styles.label}>Upcoming</Text>
           </View>
         </View>
       </View>

@@ -33,6 +33,24 @@ export const savePlan = internalMutation({
     for (const plan of existingPlans) {
       if (plan.status === "active") {
         await ctx.db.patch(plan._id, { status: "archived" });
+
+        // Delete old tasks and their parts
+        const oldTasks = await ctx.db
+          .query("maintenanceTasks")
+          .withIndex("by_plan", (q) => q.eq("planId", plan._id))
+          .collect();
+
+        for (const task of oldTasks) {
+          // Delete parts for this task
+          const oldParts = await ctx.db
+            .query("parts")
+            .withIndex("by_task", (q) => q.eq("taskId", task._id))
+            .collect();
+          for (const part of oldParts) {
+            await ctx.db.delete(part._id);
+          }
+          await ctx.db.delete(task._id);
+        }
       }
     }
 

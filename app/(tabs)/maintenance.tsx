@@ -79,8 +79,17 @@ export default function MaintenanceScreen() {
   }[];
 
   const overdueTasks = tasks?.filter((t) => t.status === 'overdue') ?? [];
-  const dueTasks = tasks?.filter((t) => t.status === 'due' || t.status === 'pending') ?? [];
-  const allTasks = [...overdueTasks, ...dueTasks];
+  const dueTasks = tasks?.filter((t) => t.status === 'due') ?? [];
+  const allTasks = [...overdueTasks, ...dueTasks].sort((a, b) => {
+    // Sort by due mileage ascending
+    const aMileage = a.dueMileage ?? Infinity;
+    const bMileage = b.dueMileage ?? Infinity;
+    if (aMileage !== bMileage) return aMileage - bMileage;
+    // Then by due date
+    const aDate = a.dueDate ?? '';
+    const bDate = b.dueDate ?? '';
+    return aDate.localeCompare(bDate);
+  });
 
   // Apply bike filter
   const filteredTasks = selectedBikeId
@@ -134,7 +143,7 @@ export default function MaintenanceScreen() {
         {!isLoading && (
           <SummaryCards
             overdueCount={overdueTasks.length}
-            dueCount={dueTasks.length}
+            dueCount={allTasks.length}
             completedCount={completedCount ?? 0}
             totalSavings={savings ?? 0}
             currency={currency}

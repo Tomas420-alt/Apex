@@ -30,28 +30,51 @@ export const listByPlan = query({
   },
 });
 
-// Query: Get all tasks for a bike
+// Query: Get all tasks for a bike (only from the active plan)
 export const listByBike = query({
   args: { bikeId: v.id("bikes") },
   handler: async (ctx, { bikeId }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
+    // Find the active plan for this bike
+    const plans = await ctx.db
+      .query("maintenancePlans")
+      .withIndex("by_bike", (q) => q.eq("bikeId", bikeId))
+      .collect();
+    const activePlan = plans.find(
+      (p) => p.status === "active" && p.userId === identity.subject
+    );
+    if (!activePlan) return [];
+
     const tasks = await ctx.db
       .query("maintenanceTasks")
-      .withIndex("by_bike", (q) => q.eq("bikeId", bikeId))
+      .withIndex("by_plan", (q) => q.eq("planId", activePlan._id))
       .collect();
 
     return tasks.filter((t) => t.userId === identity.subject);
   },
 });
 
-// Query: Get all active tasks (pending, due, overdue) for the user
+// Query: Get tasks that are due within 14 days or overdue
+// Only includes tasks from active plans
 export const listDue = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return [];
+
+    const now = Date.now();
+    const fourteenDaysMs = 14 * 24 * 60 * 60 * 1000;
+
+    // Get active plan IDs to filter tasks
+    const allPlans = await ctx.db
+      .query("maintenancePlans")
+      .withIndex("by_user", (q) => q.eq("userId", identity.subject))
+      .collect();
+    const activePlanIds = new Set(
+      allPlans.filter((p) => p.status === "active").map((p) => p._id)
+    );
 
     const pendingTasks = await ctx.db
       .query("maintenanceTasks")
@@ -77,8 +100,36 @@ export const listDue = query({
     const allTasks = [...overdueTasks, ...dueTasks, ...pendingTasks];
     const results = [];
     for (const task of allTasks) {
-      if (await bikeExists(ctx, task.bikeId)) {
-        results.push(task);
+      if (!activePlanIds.has(task.planId)) continue;
+      if (!(await bikeExists(ctx, task.bikeId))) continue;
+
+      // Compute real-time status from dueDate
+      let computedStatus = task.status;
+      if (task.status !== "completed" && task.status !== "skipped") {
+        if (!task.dueDate) {
+          // No due date → treat as "due" (show it, since we can't determine timing)
+          computedStatus = "due";
+        } else {
+          const dueTime = new Date(task.dueDate).getTime();
+          if (!isNaN(dueTime)) {
+            const timeUntilDue = dueTime - now;
+            if (timeUntilDue < 0) {
+              computedStatus = "overdue";
+            } else if (timeUntilDue <= fourteenDaysMs) {
+              computedStatus = "due";
+            } else {
+              computedStatus = "pending";
+            }
+          } else {
+            // Invalid date string → treat as "due"
+            computedStatus = "due";
+          }
+        }
+      }
+
+      // Only include tasks that are due soon (within 14 days) or overdue
+      if (computedStatus === "due" || computedStatus === "overdue") {
+        results.push({ ...task, status: computedStatus });
       }
     }
     return results;
@@ -199,6 +250,161 @@ export const totalSavings = query({
       }
     }
     return total;
+  },
+});
+
+// Helper: snap a date to the nearest Saturday
+function snapToSaturday(d: Date): Date {
+  const dow = d.getUTCDay(); // 0=Sun, 6=Sat
+  if (dow === 6) return d; // already Saturday
+  if (dow === 0) {
+    // Sunday → go back 1 day to Saturday
+    d.setUTCDate(d.getUTCDate() - 1);
+  } else {
+    // Mon-Fri → go forward to Saturday
+    d.setUTCDate(d.getUTCDate() + (6 - dow));
+  }
+  return d;
+}
+
+// Helper: add months to a date string, supporting fractional months (0.5 = ~2 weeks)
+// Sub-monthly intervals snap to the nearest Saturday (weekend tasks)
+function addMonthsToDate(isoDate: string, months: number, snapWeekend = false): string {
+  const d = new Date(isoDate + "T00:00:00Z");
+  if (months >= 1 && Number.isInteger(months)) {
+    d.setUTCMonth(d.getUTCMonth() + months);
+  } else {
+    // Fractional months — convert to days (30.44 avg days/month)
+    const days = Math.round(months * 30.44);
+    d.setUTCDate(d.getUTCDate() + days);
+  }
+  // Snap sub-monthly projected tasks to Saturday
+  if (snapWeekend) snapToSaturday(d);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+// Query: Get ALL tasks with due dates for calendar display (from full maintenance plans)
+// Projects recurring tasks into the future based on intervalMonths so the calendar never runs out
+export const listForCalendar = query({
+  args: {
+    startDate: v.string(),
+    endDate: v.string(),
+  },
+  handler: async (ctx, { startDate, endDate }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+
+    const now = Date.now();
+
+    // Get all user's bikes
+    const bikes = await ctx.db
+      .query("bikes")
+      .withIndex("by_user", (q) => q.eq("userId", identity.subject))
+      .collect();
+
+    // Get active plan IDs only
+    const allPlans = await ctx.db
+      .query("maintenancePlans")
+      .withIndex("by_user", (q) => q.eq("userId", identity.subject))
+      .collect();
+    const activePlanIds = new Set(
+      allPlans.filter((p) => p.status === "active").map((p) => p._id)
+    );
+
+    const results: Array<{
+      _id: string;
+      name: string;
+      priority: string;
+      status: string;
+      dueDate: string;
+      bikeId: string;
+    }> = [];
+
+    for (const bike of bikes) {
+      // Find the active plan for this bike
+      const activePlan = allPlans.find(
+        (p) => p.bikeId === bike._id && p.status === "active"
+      );
+      if (!activePlan) continue;
+
+      // Get tasks for active plan only
+      const tasks = await ctx.db
+        .query("maintenanceTasks")
+        .withIndex("by_plan", (q) => q.eq("planId", activePlan._id))
+        .collect();
+
+      for (const task of tasks) {
+        if (task.userId !== identity.subject) continue;
+        if (!task.dueDate) continue;
+
+        // Compute real-time status for the original due date
+        const computeStatus = (dueDateStr: string) => {
+          const dueTime = new Date(dueDateStr).getTime();
+          if (isNaN(dueTime)) return "pending";
+          if (dueTime < now) return "overdue";
+          if (dueTime - now <= 14 * 86400000) return "due";
+          return "pending";
+        };
+
+        // Add the original task if it falls in range
+        if (task.dueDate >= startDate && task.dueDate <= endDate) {
+          let computedStatus = task.status;
+          if (task.status !== "completed" && task.status !== "skipped") {
+            computedStatus = computeStatus(task.dueDate);
+          }
+
+          results.push({
+            _id: task._id,
+            name: task.name,
+            priority: task.priority,
+            status: computedStatus,
+            dueDate: task.dueDate,
+            bikeId: task.bikeId,
+          });
+        }
+
+        // Project future recurring occurrences based on intervalMonths
+        // Default to 12 months if no interval set (annual re-check)
+        const interval = task.intervalMonths && task.intervalMonths > 0
+          ? task.intervalMonths
+          : 12;
+        const isSubMonthly = interval < 1;
+        {
+          let occurrence = 1;
+          // Safety limit: more occurrences for sub-monthly tasks
+          const maxOccurrences = isSubMonthly ? 60 : 24;
+          while (occurrence <= maxOccurrences) {
+            const projectedDate = addMonthsToDate(
+              task.dueDate,
+              interval * occurrence,
+              isSubMonthly, // snap sub-monthly to Saturday
+            );
+
+            // Past the end of our range — stop
+            if (projectedDate > endDate) break;
+
+            // Only include if within requested range
+            if (projectedDate >= startDate) {
+              results.push({
+                _id: `${task._id}_r${occurrence}`,
+                name: task.name,
+                priority: task.priority,
+                status: computeStatus(projectedDate),
+                dueDate: projectedDate,
+                bikeId: task.bikeId,
+              });
+            }
+
+            occurrence++;
+          }
+        }
+      }
+    }
+
+    return results;
   },
 });
 

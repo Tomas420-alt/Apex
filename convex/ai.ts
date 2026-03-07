@@ -65,20 +65,66 @@ export const generateMaintenancePlan = internalAction({
     lastServiceDate: v.optional(v.string()),
     lastServiceMileage: v.optional(v.number()),
     country: v.optional(v.string()),
+    ridingStyle: v.optional(v.string()),
+    annualMileage: v.optional(v.number()),
+    climate: v.optional(v.string()),
+    storageType: v.optional(v.string()),
+    inspectionData: v.optional(v.string()),
+    confirmedOkItems: v.optional(v.array(v.string())),
   },
   handler: async (
     ctx,
-    { bikeId, userId, make, model, year, mileage, lastServiceDate, lastServiceMileage, country }
+    { bikeId, userId, make, model, year, mileage, lastServiceDate, lastServiceMileage, country, ridingStyle, annualMileage, climate, storageType, inspectionData, confirmedOkItems }
   ): Promise<Id<"maintenancePlans">> => {
     const openai = getOpenAIClient();
 
+    const hasServiceHistory = !!lastServiceDate;
     const lastServiceInfo = lastServiceDate
       ? `Last service date: ${lastServiceDate}${lastServiceMileage != null ? `, last service mileage: ${lastServiceMileage} km` : ""}.`
       : "No previous service history recorded.";
 
+    const noHistoryRule = !hasServiceHistory
+      ? `\n\nNO SERVICE HISTORY RULE:
+The user has NO recorded service history. This does NOT mean everything is overdue. For STANDARD MAINTENANCE tasks (oil change, valve check, chain lube, etc.) that are NOT flagged by inspection results:
+- Treat today as if the bike just had a full baseline service
+- Schedule them at their normal intervals FORWARD from today's date and current mileage (e.g. oil change → due_date 6 months from now, due_mileage current + 6000)
+- Do NOT set standard maintenance to "due now" — most should have FUTURE due dates
+- Priority for standard maintenance should be medium or low
+${inspectionData ? "IMPORTANT: This rule does NOT apply to items identified as problems in the inspection results below. Inspection-flagged items MUST still be included as tasks with urgency based on their severity." : ""}`
+      : "";
+
     const countryInfo = country
       ? `User's Country: ${country}`
       : "User's Country: United States";
+
+    // Build rider context for personalized intervals
+    const riderContextParts: string[] = [];
+    if (ridingStyle) riderContextParts.push(`Riding Style: ${ridingStyle}`);
+    if (annualMileage) riderContextParts.push(`Annual Mileage: ~${annualMileage} km/year`);
+    if (climate) riderContextParts.push(`Climate/Conditions: ${climate}`);
+    if (storageType) riderContextParts.push(`Storage: ${storageType}`);
+    const riderContext = riderContextParts.length > 0
+      ? `\n\nRIDER PROFILE:\n${riderContextParts.join("\n")}`
+      : "";
+
+    const today = new Date().toISOString().split("T")[0];
+    const inspectionInfo = inspectionData
+      ? `\n\nPRE-SERVICE INSPECTION RESULTS (user-reported, today is ${today}):\n${inspectionData}\n\nRULES FOR INSPECTION-BASED PLAN — FOLLOW EXACTLY:
+1. ASSESS EACH ITEM as an expert mechanic. The user reported their findings — YOU must judge whether each item is a problem or acceptable:
+   - Tires aged 1-3 years with good tread → FINE, no task needed.
+   - Tires aged 5+ years → needs replacement regardless of tread.
+   - Brake pads "Good" → no task. Brake pads "Metal on metal" → CRITICAL, immediate task.
+   - Chain slack within spec → no task. Chain excessively worn → task needed.
+   - Fluid "Clean" or "Good" → no task. Fluid "Dark/contaminated" → task needed.
+   - Numbers must be interpreted in context of their unit and what's normal for that component.
+2. ONLY create tasks for items that are genuinely problematic or out of spec. Items reported as good, clean, adequate, within spec, or recently serviced → DO NOT create tasks for them.
+3. For tasks you DO create, set appropriate urgency:
+   - SAFETY-CRITICAL (brake failure, tire dangerous) → due_date within 1-2 weeks, priority HIGH or CRITICAL.
+   - MODERATE (worn but functional, should be addressed soon) → due_date 1-3 months out, priority MEDIUM.
+   - MINOR (slightly out of spec, cosmetic) → due_date 3-6 months out, priority LOW.
+4. You may add standard scheduled maintenance items (oil changes, valve checks, etc.) at their normal manufacturer intervals with future due dates — but these must NOT be due within the next month.
+5. If everything looks good, generate a standard maintenance plan with all due dates in the future — nothing due immediately.`
+      : "";
 
     const userPrompt = `You are an expert motorcycle mechanic. Generate a comprehensive maintenance plan for the following motorcycle:
 
@@ -87,18 +133,49 @@ Model: ${model}
 Year: ${year}
 Current Mileage: ${mileage} km
 ${lastServiceInfo}
-${countryInfo}
+${countryInfo}${riderContext}${noHistoryRule}${inspectionInfo}
+
+PERSONALIZED INTERVALS RULE — USE THE RIDER PROFILE TO ADJUST ALL INTERVALS:
+The rider profile above describes how the user actually rides. You MUST use it to adjust every task's interval_km, interval_months, and due_date — do NOT use generic manufacturer intervals without adapting them. Key factors:
+- High annual mileage / daily riding → shorter km intervals, tasks come due sooner
+- Low annual mileage / weekend riding → longer time intervals, tasks spaced further apart
+- Wet/rainy/salty/dusty climate → accelerated wear on chain, brakes, corrosion-prone parts → shorter intervals
+- Dry/mild climate → standard or longer intervals
+- Outdoor/uncovered storage → more corrosion, UV damage, moisture → shorter intervals for chain, fluids, rubber parts
+- Garage/indoor storage → standard intervals
+- Aggressive/sport riding style → harder on brakes, tires, suspension → shorter intervals
+- Casual/commuter riding → standard intervals
+
+SUB-MONTHLY TASKS: For daily riders in harsh conditions, some tasks genuinely need to happen more often than monthly. Use interval_months decimals (0.5 = every 2 weeks). Consider adding these where the rider profile warrants it:
+- Chain clean, lube & tension check: COMBINE into ONE single task called "Chain clean, lube & tension check" — do NOT create separate tasks for cleaning, lubing, and tension. Daily commuter in wet climate → interval_months: 0.5
+- Tire pressure check: daily rider → interval_months: 0.5
+- Quick visual safety check (brakes, lights, fluid levels): ONE combined task, daily rider → interval_months: 0.5-1
+- Bike wash / corrosion rinse: wet/salty climate → interval_months: 0.5-1
+For weekend/casual riders in dry climates, these can stay monthly or longer. Match the rider profile.
+IMPORTANT: Each of the above must be exactly ONE task. Do NOT split into sub-tasks.
+
+CRITICAL ACCURACY RULE: Only include maintenance tasks for components that ACTUALLY EXIST on the ${year} ${make} ${model}. You must verify each task against your knowledge of this specific model before including it. Examples of mistakes to avoid:
+- Do NOT include carburetor sync/cleaning if this bike is fuel-injected
+- Do NOT include coolant flush if this bike is air-cooled only
+- Do NOT include drive shaft service if this bike has chain drive
+- Do NOT include ABS service if this model year has no ABS
+- Do NOT include hydraulic clutch service if this bike has a cable clutch
+- Do NOT include valve clearance check if this bike has hydraulic valve adjusters
+If you are not 100% certain a component exists on this exact model and year, leave it out.
 
 Please provide a detailed maintenance plan that covers all recommended service intervals. For each task:
 - Identify what needs to be done and why
-- Specify service intervals (km and months)
+- Specify service intervals (km and months) — EVERY task MUST have a positive interval_months value representing how often it should recur. Decimals are supported (0.5 = every 2 weeks, 1 = monthly, 3 = quarterly, 6 = biannual, 12 = annual, 24 = biennial). Even one-off repairs recur eventually — set a realistic re-inspection or replacement interval.
 - Assign priority based on safety and mechanical necessity
 - For estimated_cost_usd: estimate the DIY parts cost only — what it costs to buy the parts yourself, in the user's LOCAL currency (e.g. EUR for France, GBP for UK, USD for US, INR for India, etc.)
 - For estimated_labor_cost_usd: estimate what a professional motorcycle mechanic shop in the user's country would charge for LABOR ONLY (not including parts) for this specific task. Use the average local motorcycle mechanic hourly rate for that country, in the user's LOCAL currency.
 - List all parts that will be needed
 - Calculate when the task is due based on current mileage and service history
+- due_date MUST be a valid ISO date string (YYYY-MM-DD format, e.g. "2026-04-15"). NEVER use words like "now", "immediately", "ASAP", or "today" — always calculate the actual calendar date. If something is due immediately, use today's date: ${today}.
 
-Focus on manufacturer-recommended maintenance items as well as common wear items for this bike.`;
+Focus on manufacturer-recommended maintenance items as well as common wear items for this bike.
+
+IMPORTANT: Do NOT create separate tasks for front and rear of the same component (e.g. combine "front + rear brake pads" into one task, "front + rear tire replacement" into one task). Consolidate related items where sensible to avoid bloated task lists. Do NOT duplicate tasks — each distinct maintenance job should appear exactly once.`;
 
     const response = await openai.chat.completions.parse({
       model: "gpt-5.2",
@@ -121,7 +198,7 @@ Focus on manufacturer-recommended maintenance items as well as common wear items
 
     type TaskInput = z.infer<typeof MaintenanceTaskSchema>;
 
-    // Map parsed tasks to the format expected by savePlan
+    // Map parsed tasks directly — good items are already filtered out before reaching AI
     const tasks = parsed.tasks.map((t: TaskInput) => ({
       name: t.task,
       description: t.description,
@@ -130,7 +207,7 @@ Focus on manufacturer-recommended maintenance items as well as common wear items
       priority: t.priority,
       estimatedCostUsd: t.estimated_cost_usd > 0 ? t.estimated_cost_usd : undefined,
       estimatedLaborCostUsd: t.estimated_labor_cost_usd > 0 ? t.estimated_labor_cost_usd : undefined,
-      dueDate: t.due_date ?? undefined,
+      dueDate: t.due_date && /^\d{4}-\d{2}-\d{2}/.test(t.due_date) ? t.due_date : undefined,
       dueMileage: t.due_mileage ?? undefined,
       partsNeeded: t.parts_needed.length > 0 ? t.parts_needed : undefined,
     }));

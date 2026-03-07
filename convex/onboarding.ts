@@ -67,18 +67,35 @@ export const save = mutation({
         : {}),
     });
 
-    // Auto-trigger maintenance plan generation
-    await ctx.scheduler.runAfter(0, internal.ai.generateMaintenancePlan, {
-      bikeId,
-      userId: identity.subject,
-      make: args.make,
-      model: args.model,
-      year: args.year,
-      mileage: args.mileage,
-      lastServiceDate: args.lastServiceDate,
-      lastServiceMileage: args.lastServiceMileage,
-      country: args.country,
-    });
+    // If no service history, trigger inspection checklist instead of plan
+    if (!args.lastServiceDate) {
+      await ctx.scheduler.runAfter(0, internal.inspection.generateChecklist, {
+        bikeId,
+        userId: identity.subject,
+        make: args.make,
+        model: args.model,
+        year: args.year,
+        mileage: args.mileage,
+        notes: args.notes,
+      });
+    } else {
+      // Has service history — generate plan directly
+      await ctx.scheduler.runAfter(0, internal.ai.generateMaintenancePlan, {
+        bikeId,
+        userId: identity.subject,
+        make: args.make,
+        model: args.model,
+        year: args.year,
+        mileage: args.mileage,
+        lastServiceDate: args.lastServiceDate,
+        lastServiceMileage: args.lastServiceMileage,
+        country: args.country,
+        ridingStyle: args.ridingStyle,
+        annualMileage: args.annualMileage,
+        climate: args.climate,
+        storageType: args.storageType,
+      });
+    }
 
     return bikeId;
   },

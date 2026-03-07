@@ -176,6 +176,31 @@ export const generatePlan = mutation({
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .first();
 
+    // Include inspection data if available
+    let inspectionSummary: string | undefined;
+    if (bike.inspectionStatus === "complete") {
+      const items = await ctx.db
+        .query("inspectionItems")
+        .withIndex("by_bike", (q) => q.eq("bikeId", bikeId))
+        .collect();
+      const sorted = items
+        .filter((i) => i.userId === identity.subject)
+        .sort((a, b) => a.order - b.order);
+      if (sorted.length > 0) {
+        const lines: string[] = [];
+        for (const item of sorted) {
+          const response = item.response ?? "Not checked";
+          let line = `- ${item.name} [${item.category}]: ${response}`;
+          if (item.unit) line += ` ${item.unit}`;
+          if (item.options && item.options.length > 0) {
+            line += ` (options were: ${item.options.join(", ")})`;
+          }
+          lines.push(line);
+        }
+        inspectionSummary = `USER INSPECTION RESULTS — each item below shows what the user reported:\n${lines.join("\n")}`;
+      }
+    }
+
     await ctx.scheduler.runAfter(0, internal.ai.generateMaintenancePlan, {
       bikeId,
       userId: identity.subject,
@@ -186,6 +211,11 @@ export const generatePlan = mutation({
       lastServiceDate: bike.lastServiceDate,
       lastServiceMileage: bike.lastServiceMileage,
       country: user?.country,
+      ridingStyle: bike.ridingStyle,
+      annualMileage: bike.annualMileage,
+      climate: bike.climate,
+      storageType: bike.storageType,
+      inspectionData: inspectionSummary,
     });
   },
 });

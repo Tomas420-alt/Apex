@@ -13,6 +13,8 @@ import type * as auth from "../auth.js";
 import type * as bikes from "../bikes.js";
 import type * as crons from "../crons.js";
 import type * as http from "../http.js";
+import type * as imageEditActions from "../imageEditActions.js";
+import type * as imageEdits from "../imageEdits.js";
 import type * as inspection from "../inspection.js";
 import type * as inspectionMutations from "../inspectionMutations.js";
 import type * as maintenancePlans from "../maintenancePlans.js";
@@ -35,6 +37,8 @@ declare const fullApi: ApiFromModules<{
   bikes: typeof bikes;
   crons: typeof crons;
   http: typeof http;
+  imageEditActions: typeof imageEditActions;
+  imageEdits: typeof imageEdits;
   inspection: typeof inspection;
   inspectionMutations: typeof inspectionMutations;
   maintenancePlans: typeof maintenancePlans;

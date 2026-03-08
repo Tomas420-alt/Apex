@@ -1,17 +1,18 @@
 import { query, mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { ensureUser } from "./users";
 
 // Get all bikes for authenticated user
 export const list = query({
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return [];
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
 
     return await ctx.db
       .query("bikes")
-      .withIndex("by_user", (q) => q.eq("userId", identity.subject))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
   },
@@ -21,12 +22,12 @@ export const list = query({
 export const get = query({
   args: { id: v.id("bikes") },
   handler: async (ctx, { id }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return null;
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return null;
 
     const bike = await ctx.db.get(id);
     if (!bike) return null;
-    if (bike.userId !== identity.subject) return null;
+    if (bike.userId !== userId) return null;
 
     return bike;
   },
@@ -45,13 +46,13 @@ export const add = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     await ensureUser(ctx);
 
     return await ctx.db.insert("bikes", {
-      userId: identity.subject,
+      userId,
       make: args.make,
       model: args.model,
       year: args.year,
@@ -78,12 +79,12 @@ export const update = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, { id, ...fields }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const bike = await ctx.db.get(id);
     if (!bike) throw new Error("Bike not found");
-    if (bike.userId !== identity.subject) throw new Error("Unauthorized");
+    if (bike.userId !== userId) throw new Error("Unauthorized");
 
     // Build patch object with only defined fields
     const patch: Partial<typeof fields> = {};
@@ -101,12 +102,12 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("bikes") },
   handler: async (ctx, { id }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const bike = await ctx.db.get(id);
     if (!bike) throw new Error("Bike not found");
-    if (bike.userId !== identity.subject) throw new Error("Unauthorized");
+    if (bike.userId !== userId) throw new Error("Unauthorized");
 
     // Delete all parts for this bike
     const parts = await ctx.db
@@ -139,6 +140,24 @@ export const remove = mutation({
   },
 });
 
+// Update a bike's image URL
+export const updateBikeImage = mutation({
+  args: {
+    bikeId: v.id("bikes"),
+    imageUrl: v.string(),
+  },
+  handler: async (ctx, { bikeId, imageUrl }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const bike = await ctx.db.get(bikeId);
+    if (!bike) throw new Error("Bike not found");
+    if (bike.userId !== userId) throw new Error("Unauthorized");
+
+    await ctx.db.patch(bikeId, { imageUrl });
+  },
+});
+
 // Quick update just the mileage field
 export const updateMileage = mutation({
   args: {
@@ -146,12 +165,12 @@ export const updateMileage = mutation({
     mileage: v.number(),
   },
   handler: async (ctx, { id, mileage }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const bike = await ctx.db.get(id);
     if (!bike) throw new Error("Bike not found");
-    if (bike.userId !== identity.subject) throw new Error("Unauthorized");
+    if (bike.userId !== userId) throw new Error("Unauthorized");
 
     await ctx.db.patch(id, { mileage });
   },
@@ -163,18 +182,15 @@ export const generatePlan = mutation({
     bikeId: v.id("bikes"),
   },
   handler: async (ctx, { bikeId }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const bike = await ctx.db.get(bikeId);
     if (!bike) throw new Error("Bike not found");
-    if (bike.userId !== identity.subject) throw new Error("Unauthorized");
+    if (bike.userId !== userId) throw new Error("Unauthorized");
 
     // Look up user's country for localized labor cost estimates
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .first();
+    const user = await ctx.db.get(userId);
 
     // Include inspection data if available
     let inspectionSummary: string | undefined;
@@ -184,7 +200,7 @@ export const generatePlan = mutation({
         .withIndex("by_bike", (q) => q.eq("bikeId", bikeId))
         .collect();
       const sorted = items
-        .filter((i) => i.userId === identity.subject)
+        .filter((i) => i.userId === userId)
         .sort((a, b) => a.order - b.order);
       if (sorted.length > 0) {
         const lines: string[] = [];
@@ -203,7 +219,7 @@ export const generatePlan = mutation({
 
     await ctx.scheduler.runAfter(0, internal.ai.generateMaintenancePlan, {
       bikeId,
-      userId: identity.subject,
+      userId,
       make: bike.make,
       model: bike.model,
       year: bike.year,

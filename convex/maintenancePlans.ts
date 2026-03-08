@@ -1,5 +1,6 @@
 import { query, mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 // Internal mutation: Save a maintenance plan and its tasks to the database
 export const savePlan = internalMutation({
@@ -101,12 +102,12 @@ export const savePlan = internalMutation({
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return [];
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
 
     return await ctx.db
       .query("maintenancePlans")
-      .withIndex("by_user", (q) => q.eq("userId", identity.subject))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
   },
@@ -116,8 +117,8 @@ export const list = query({
 export const getByBike = query({
   args: { bikeId: v.id("bikes") },
   handler: async (ctx, { bikeId }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return null;
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return null;
 
     const plans = await ctx.db
       .query("maintenancePlans")
@@ -125,7 +126,7 @@ export const getByBike = query({
       .order("desc")
       .collect();
 
-    return plans.find((p) => p.status === "active" && p.userId === identity.subject) ?? null;
+    return plans.find((p) => p.status === "active" && p.userId === userId) ?? null;
   },
 });
 
@@ -133,12 +134,12 @@ export const getByBike = query({
 export const archivePlan = mutation({
   args: { planId: v.id("maintenancePlans") },
   handler: async (ctx, { planId }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const plan = await ctx.db.get(planId);
     if (!plan) throw new Error("Plan not found");
-    if (plan.userId !== identity.subject) throw new Error("Unauthorized");
+    if (plan.userId !== userId) throw new Error("Unauthorized");
 
     await ctx.db.patch(planId, { status: "archived" });
   },

@@ -1,20 +1,17 @@
-import { Tabs, Redirect } from 'expo-router';
-import { Bike, Wrench, Settings } from 'lucide-react-native';
-import { Platform } from 'react-native';
-import { useAuth } from '@clerk/clerk-expo';
-import { useQuery } from 'convex/react';
+import { Redirect } from 'expo-router';
+import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
+import { useConvexAuth, useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
-import { colors } from '@/constants/theme';
 
 export default function TabLayout() {
-  const { isSignedIn, isLoaded } = useAuth();
+  const { isAuthenticated, isLoading } = useConvexAuth();
   const user = useQuery(api.users.getCurrent);
 
-  if (!isLoaded) {
+  if (isLoading) {
     return null;
   }
 
-  if (!isSignedIn) {
+  if (!isAuthenticated) {
     return <Redirect href="/(auth)/sign-in" />;
   }
 
@@ -29,69 +26,19 @@ export default function TabLayout() {
   }
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: colors.surface1,
-          borderTopWidth: 0,
-          borderWidth: 1,
-          borderColor: colors.border,
-          borderRadius: 24,
-          position: 'absolute',
-          bottom: Platform.OS === 'ios' ? 28 : 16,
-          left: 20,
-          right: 20,
-          height: 64,
-          paddingBottom: 0,
-          paddingTop: 0,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 12,
-          elevation: 8,
-        },
-        tabBarActiveTintColor: '#FFFFFF',
-        tabBarInactiveTintColor: colors.textTertiary,
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-          marginTop: 2,
-        },
-        tabBarIconStyle: {
-          marginBottom: -2,
-        },
-        sceneStyle: {
-          backgroundColor: colors.bg,
-        },
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Garage',
-          tabBarIcon: ({ size, color }) => (
-            <Bike size={size} color={color} strokeWidth={2} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="maintenance"
-        options={{
-          title: 'Maintenance',
-          tabBarIcon: ({ size, color }) => (
-            <Wrench size={size} color={color} strokeWidth={2} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Settings',
-          tabBarIcon: ({ size, color }) => (
-            <Settings size={size} color={color} strokeWidth={2} />
-          ),
-        }}
-      />
-    </Tabs>
+    <NativeTabs minimizeBehavior="onScrollDown" tintColor="#00E599">
+      <NativeTabs.Trigger name="index">
+        <Icon sf={{ default: 'bicycle', selected: 'bicycle' }} />
+        <Label>Garage</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="maintenance">
+        <Icon sf={{ default: 'wrench', selected: 'wrench.fill' }} />
+        <Label>Maintenance</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="settings">
+        <Icon sf={{ default: 'gear', selected: 'gear' }} />
+        <Label>Settings</Label>
+      </NativeTabs.Trigger>
+    </NativeTabs>
   );
 }

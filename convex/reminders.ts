@@ -1,17 +1,16 @@
 import { query, mutation, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 // ─── Internal helpers ──────────────────────────────────────────────────────────
 
-// Fetch a user record by Clerk ID (used by notifications.ts actions)
-export const getUserByClerkId = internalQuery({
-  args: { clerkId: v.string() },
+// Fetch a user record by ID (used by notifications.ts actions)
+export const getUserById = internalQuery({
+  args: { userId: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
-      .first();
+    return await ctx.db.get(args.userId as Id<"users">);
   },
 });
 
@@ -61,12 +60,12 @@ export const updateStatus = internalMutation({
 export const listByUser = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     return await ctx.db
       .query("reminders")
-      .withIndex("by_user_and_status", (q) => q.eq("userId", identity.subject))
+      .withIndex("by_user_and_status", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
   },
@@ -76,8 +75,8 @@ export const listByUser = query({
 export const listByTask = query({
   args: { taskId: v.id("maintenanceTasks") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     return await ctx.db
       .query("reminders")
@@ -99,10 +98,9 @@ export const scheduleReminder = mutation({
     bikeName: v.string(),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
-    const userId = identity.subject;
     const delayMs = Math.max(0, args.scheduledAt - Date.now());
 
     // Persist the reminder record first
@@ -131,12 +129,12 @@ export const scheduleReminder = mutation({
 export const cancel = mutation({
   args: { reminderId: v.id("reminders") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const reminder = await ctx.db.get(args.reminderId);
     if (!reminder) throw new Error("Reminder not found");
-    if (reminder.userId !== identity.subject) throw new Error("Unauthorized");
+    if (reminder.userId !== userId) throw new Error("Unauthorized");
 
     await ctx.db.patch(args.reminderId, { status: "cancelled" });
   },
@@ -151,12 +149,12 @@ export const snooze = mutation({
     bikeName: v.string(),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const reminder = await ctx.db.get(args.reminderId);
     if (!reminder) throw new Error("Reminder not found");
-    if (reminder.userId !== identity.subject) throw new Error("Unauthorized");
+    if (reminder.userId !== userId) throw new Error("Unauthorized");
 
     // Mark the existing reminder as snoozed
     await ctx.db.patch(args.reminderId, { status: "snoozed" });

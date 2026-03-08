@@ -1085,11 +1085,27 @@ export default function OnboardingScreen() {
   const showChoiceTextFallback =
     showChoices && resolvedPlaceholder && currentStep?.inputType === 'choice';
 
+  const skipOnboarding = useMutation(api.onboarding.skip);
+
+  const handleSkip = useCallback(async () => {
+    try {
+      await skipOnboarding();
+      router.replace('/(tabs)');
+    } catch (error) {
+      console.error('Skip onboarding failed:', error);
+    }
+  }, [skipOnboarding]);
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Progress Bar */}
-      <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+      <View style={styles.progressRow}>
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+        </View>
+        <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
+          <Text style={styles.skipButtonText}>Skip</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Chat Messages */}
@@ -1243,9 +1259,25 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingRight: 16,
+  },
   progressTrack: {
+    flex: 1,
     height: 3,
     backgroundColor: colors.surface1,
+  },
+  skipButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  skipButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textTertiary,
   },
   progressFill: {
     height: 3,

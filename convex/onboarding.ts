@@ -1,6 +1,7 @@
 import { mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { ensureUser } from "./users";
 
 // Save all onboarding data: create bike + update user profile + trigger plan generation
@@ -33,15 +34,15 @@ export const save = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const user = await ensureUser(ctx);
     if (!user) throw new Error("Could not create user");
 
     // Create the bike
     const bikeId = await ctx.db.insert("bikes", {
-      userId: identity.subject,
+      userId: userId,
       make: args.make,
       model: args.model,
       year: args.year,
@@ -71,7 +72,7 @@ export const save = mutation({
     if (!args.lastServiceDate) {
       await ctx.scheduler.runAfter(0, internal.inspection.generateChecklist, {
         bikeId,
-        userId: identity.subject,
+        userId: userId,
         make: args.make,
         model: args.model,
         year: args.year,
@@ -82,7 +83,7 @@ export const save = mutation({
       // Has service history — generate plan directly
       await ctx.scheduler.runAfter(0, internal.ai.generateMaintenancePlan, {
         bikeId,
-        userId: identity.subject,
+        userId: userId,
         make: args.make,
         model: args.model,
         year: args.year,
@@ -98,5 +99,19 @@ export const save = mutation({
     }
 
     return bikeId;
+  },
+});
+
+// Skip onboarding — just mark as completed without saving any bike data
+export const skip = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const user = await ensureUser(ctx);
+    if (!user) throw new Error("User not found");
+    await ctx.db.patch(user._id, {
+      hasCompletedOnboarding: true,
+    });
   },
 });

@@ -1,6 +1,7 @@
 import { query, mutation, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 // Internal mutation: Bulk save parts
 export const saveParts = internalMutation({
@@ -63,15 +64,15 @@ export const saveParts = internalMutation({
 export const listByBike = query({
   args: { bikeId: v.id("bikes") },
   handler: async (ctx, { bikeId }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const parts = await ctx.db
       .query("parts")
       .withIndex("by_bike", (q) => q.eq("bikeId", bikeId))
       .collect();
 
-    return parts.filter((p) => p.userId === identity.subject);
+    return parts.filter((p) => p.userId === userId);
   },
 });
 
@@ -79,15 +80,15 @@ export const listByBike = query({
 export const listByTask = query({
   args: { taskId: v.id("maintenanceTasks") },
   handler: async (ctx, { taskId }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const parts = await ctx.db
       .query("parts")
       .withIndex("by_task", (q) => q.eq("taskId", taskId))
       .collect();
 
-    return parts.filter((p) => p.userId === identity.subject);
+    return parts.filter((p) => p.userId === userId);
   },
 });
 
@@ -98,21 +99,21 @@ export const generateForTask = mutation({
     bikeId: v.id("bikes"),
   },
   handler: async (ctx, { taskId, bikeId }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const bike = await ctx.db.get(bikeId);
     if (!bike) throw new Error("Bike not found");
-    if (bike.userId !== identity.subject) throw new Error("Unauthorized");
+    if (bike.userId !== userId) throw new Error("Unauthorized");
 
     const task = await ctx.db.get(taskId);
     if (!task) throw new Error("Task not found");
-    if (task.userId !== identity.subject) throw new Error("Unauthorized");
+    if (task.userId !== userId) throw new Error("Unauthorized");
 
     await ctx.scheduler.runAfter(0, internal.ai.generatePartsList, {
       taskId,
       bikeId,
-      userId: identity.subject,
+      userId: userId,
       taskName: task.name,
       taskDescription: task.description,
       make: bike.make,
@@ -126,12 +127,12 @@ export const generateForTask = mutation({
 export const togglePurchased = mutation({
   args: { partId: v.id("parts") },
   handler: async (ctx, { partId }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const part = await ctx.db.get(partId);
     if (!part) throw new Error("Part not found");
-    if (part.userId !== identity.subject) throw new Error("Unauthorized");
+    if (part.userId !== userId) throw new Error("Unauthorized");
 
     await ctx.db.patch(partId, { purchased: !part.purchased });
   },

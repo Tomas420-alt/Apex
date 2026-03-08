@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 // Helper: check if a bike still exists
 async function bikeExists(ctx: any, bikeId: any): Promise<boolean> {
@@ -11,15 +12,15 @@ async function bikeExists(ctx: any, bikeId: any): Promise<boolean> {
 export const listByPlan = query({
   args: { planId: v.id("maintenancePlans") },
   handler: async (ctx, { planId }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const tasks = await ctx.db
       .query("maintenanceTasks")
       .withIndex("by_plan", (q) => q.eq("planId", planId))
       .collect();
 
-    const userTasks = tasks.filter((t) => t.userId === identity.subject);
+    const userTasks = tasks.filter((t) => t.userId === userId);
     const results = [];
     for (const task of userTasks) {
       if (await bikeExists(ctx, task.bikeId)) {
@@ -34,8 +35,8 @@ export const listByPlan = query({
 export const listByBike = query({
   args: { bikeId: v.id("bikes") },
   handler: async (ctx, { bikeId }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     // Find the active plan for this bike
     const plans = await ctx.db
@@ -43,7 +44,7 @@ export const listByBike = query({
       .withIndex("by_bike", (q) => q.eq("bikeId", bikeId))
       .collect();
     const activePlan = plans.find(
-      (p) => p.status === "active" && p.userId === identity.subject
+      (p) => p.status === "active" && p.userId === userId
     );
     if (!activePlan) return [];
 
@@ -52,7 +53,7 @@ export const listByBike = query({
       .withIndex("by_plan", (q) => q.eq("planId", activePlan._id))
       .collect();
 
-    return tasks.filter((t) => t.userId === identity.subject);
+    return tasks.filter((t) => t.userId === userId);
   },
 });
 
@@ -61,8 +62,8 @@ export const listByBike = query({
 export const listDue = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return [];
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
 
     const now = Date.now();
     const fourteenDaysMs = 14 * 24 * 60 * 60 * 1000;
@@ -70,7 +71,7 @@ export const listDue = query({
     // Get active plan IDs to filter tasks
     const allPlans = await ctx.db
       .query("maintenancePlans")
-      .withIndex("by_user", (q) => q.eq("userId", identity.subject))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
     const activePlanIds = new Set(
       allPlans.filter((p) => p.status === "active").map((p) => p._id)
@@ -79,21 +80,21 @@ export const listDue = query({
     const pendingTasks = await ctx.db
       .query("maintenanceTasks")
       .withIndex("by_user_and_status", (q) =>
-        q.eq("userId", identity.subject).eq("status", "pending")
+        q.eq("userId", userId).eq("status", "pending")
       )
       .collect();
 
     const dueTasks = await ctx.db
       .query("maintenanceTasks")
       .withIndex("by_user_and_status", (q) =>
-        q.eq("userId", identity.subject).eq("status", "due")
+        q.eq("userId", userId).eq("status", "due")
       )
       .collect();
 
     const overdueTasks = await ctx.db
       .query("maintenanceTasks")
       .withIndex("by_user_and_status", (q) =>
-        q.eq("userId", identity.subject).eq("status", "overdue")
+        q.eq("userId", userId).eq("status", "overdue")
       )
       .collect();
 
@@ -149,12 +150,12 @@ export const updateStatus = mutation({
     ),
   },
   handler: async (ctx, { taskId, status }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const task = await ctx.db.get(taskId);
     if (!task) throw new Error("Task not found");
-    if (task.userId !== identity.subject) throw new Error("Unauthorized");
+    if (task.userId !== userId) throw new Error("Unauthorized");
 
     await ctx.db.patch(taskId, { status });
   },
@@ -164,12 +165,12 @@ export const updateStatus = mutation({
 export const complete = mutation({
   args: { id: v.id("maintenanceTasks") },
   handler: async (ctx, { id: taskId }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const task = await ctx.db.get(taskId);
     if (!task) throw new Error("Task not found");
-    if (task.userId !== identity.subject) throw new Error("Unauthorized");
+    if (task.userId !== userId) throw new Error("Unauthorized");
 
     await ctx.db.patch(taskId, {
       status: "completed",
@@ -182,13 +183,13 @@ export const complete = mutation({
 export const listRecentlyCompleted = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return [];
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
 
     const completed = await ctx.db
       .query("maintenanceTasks")
       .withIndex("by_user_and_status", (q) =>
-        q.eq("userId", identity.subject).eq("status", "completed")
+        q.eq("userId", userId).eq("status", "completed")
       )
       .collect();
 
@@ -209,13 +210,13 @@ export const listRecentlyCompleted = query({
 export const countCompleted = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return 0;
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return 0;
 
     const completed = await ctx.db
       .query("maintenanceTasks")
       .withIndex("by_user_and_status", (q) =>
-        q.eq("userId", identity.subject).eq("status", "completed")
+        q.eq("userId", userId).eq("status", "completed")
       )
       .collect();
 
@@ -233,13 +234,13 @@ export const countCompleted = query({
 export const totalSavings = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return 0;
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return 0;
 
     const completed = await ctx.db
       .query("maintenanceTasks")
       .withIndex("by_user_and_status", (q) =>
-        q.eq("userId", identity.subject).eq("status", "completed")
+        q.eq("userId", userId).eq("status", "completed")
       )
       .collect();
 
@@ -294,21 +295,21 @@ export const listForCalendar = query({
     endDate: v.string(),
   },
   handler: async (ctx, { startDate, endDate }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return [];
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
 
     const now = Date.now();
 
     // Get all user's bikes
     const bikes = await ctx.db
       .query("bikes")
-      .withIndex("by_user", (q) => q.eq("userId", identity.subject))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
     // Get active plan IDs only
     const allPlans = await ctx.db
       .query("maintenancePlans")
-      .withIndex("by_user", (q) => q.eq("userId", identity.subject))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
     const activePlanIds = new Set(
       allPlans.filter((p) => p.status === "active").map((p) => p._id)
@@ -337,7 +338,7 @@ export const listForCalendar = query({
         .collect();
 
       for (const task of tasks) {
-        if (task.userId !== identity.subject) continue;
+        if (task.userId !== userId) continue;
         if (!task.dueDate) continue;
 
         // Compute real-time status for the original due date
@@ -412,13 +413,13 @@ export const listForCalendar = query({
 export const cleanupOrphaned = mutation({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     // Clean orphaned tasks
     const allTasks = await ctx.db
       .query("maintenanceTasks")
-      .filter((q) => q.eq(q.field("userId"), identity.subject))
+      .filter((q) => q.eq(q.field("userId"), userId))
       .collect();
 
     for (const task of allTasks) {
@@ -430,7 +431,7 @@ export const cleanupOrphaned = mutation({
     // Clean orphaned plans
     const allPlans = await ctx.db
       .query("maintenancePlans")
-      .filter((q) => q.eq(q.field("userId"), identity.subject))
+      .filter((q) => q.eq(q.field("userId"), userId))
       .collect();
 
     for (const plan of allPlans) {
@@ -442,7 +443,7 @@ export const cleanupOrphaned = mutation({
     // Clean orphaned parts
     const allParts = await ctx.db
       .query("parts")
-      .filter((q) => q.eq(q.field("userId"), identity.subject))
+      .filter((q) => q.eq(q.field("userId"), userId))
       .collect();
 
     for (const part of allParts) {

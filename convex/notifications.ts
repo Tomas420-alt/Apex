@@ -3,6 +3,7 @@
 import { internalAction, action } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 // Country code mapping for E.164 phone number formatting
 const COUNTRY_DIAL_CODES: Record<string, string> = {
@@ -164,7 +165,7 @@ export const sendReminder = internalAction({
 
     if (channel === "sms") {
       // Fetch user record to get the phone number
-      const user = await ctx.runQuery(internal.reminders.getUserByClerkId, { clerkId: userId });
+      const user = await ctx.runQuery(internal.reminders.getUserById, { userId });
 
       if (!user || !user.phone) {
         await ctx.runMutation(internal.reminders.updateStatus, {
@@ -191,7 +192,7 @@ export const sendReminder = internalAction({
       });
     } else if (channel === "email") {
       // Fetch user record to get the email address
-      const user = await ctx.runQuery(internal.reminders.getUserByClerkId, { clerkId: userId });
+      const user = await ctx.runQuery(internal.reminders.getUserById, { userId });
 
       if (!user || !user.email) {
         await ctx.runMutation(internal.reminders.updateStatus, {
@@ -257,11 +258,11 @@ export const sendTest = action({
     channel: v.union(v.literal("sms"), v.literal("email")),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
-    const user = await ctx.runQuery(internal.reminders.getUserByClerkId, {
-      clerkId: identity.subject,
+    const user = await ctx.runQuery(internal.reminders.getUserById, {
+      userId,
     });
 
     if (!user) throw new Error("User not found");

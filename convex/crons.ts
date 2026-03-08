@@ -2,6 +2,7 @@ import { cronJobs } from "convex/server";
 import { internal } from "./_generated/api";
 import { internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
 
 // ─── Update task statuses based on due dates ─────────────────────────────────
 // Runs daily: sets tasks to "due" (within 14 days) or "overdue" (past due date)
@@ -66,8 +67,8 @@ export const scheduleUpcomingReminders = internalAction({
       if (existingReminder) continue;
 
       // Get the user's notification preferences
-      const user = await ctx.runQuery(internal.crons.getUserByClerkId, {
-        clerkId: task.userId,
+      const user = await ctx.runQuery(internal.crons.getUserById, {
+        userId: task.userId,
       });
       if (!user) continue;
 
@@ -151,13 +152,10 @@ export const getReminderForTask = internalQuery({
   },
 });
 
-export const getUserByClerkId = internalQuery({
-  args: { clerkId: v.string() },
+export const getUserById = internalQuery({
+  args: { userId: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
-      .first();
+    return await ctx.db.get(args.userId as Id<"users">);
   },
 });
 

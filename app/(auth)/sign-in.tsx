@@ -3,270 +3,288 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
+  Pressable,
   ActivityIndicator,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from "react-native";
-import { useSignIn, useOAuth } from "@clerk/clerk-expo";
-import { useRouter, Link } from "expo-router";
-import * as WebBrowser from "expo-web-browser";
+import Animated, {
+  FadeInDown,
+  FadeIn,
+  useAnimatedKeyboard,
+  useAnimatedStyle,
+  LinearTransition,
+} from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
+import { useAuthActions } from "@convex-dev/auth/react";
+import { Link } from "expo-router";
 import { colors } from "@/constants/theme";
 
-WebBrowser.maybeCompleteAuthSession();
-
 export default function SignInScreen() {
-  const { signIn, setActive, isLoaded } = useSignIn();
-  const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
-  const router = useRouter();
+  const { signIn } = useAuthActions();
 
-  const [emailAddress, setEmailAddress] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  const keyboard = useAnimatedKeyboard();
+  const keyboardStyle = useAnimatedStyle(() => ({
+    paddingBottom: keyboard.height.value,
+  }));
+
   const onSignInPress = async () => {
-    if (!isLoaded) return;
+    if (!email || !password) {
+      setErrorMessage("Please enter your email and password.");
+      if (process.env.EXPO_OS === "ios") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
+      return;
+    }
 
     setLoading(true);
     setErrorMessage("");
     try {
-      const signInAttempt = await signIn.create({
-        identifier: emailAddress,
-        password,
-      });
-
-      if (signInAttempt.status === "complete") {
-        await setActive({ session: signInAttempt.createdSessionId });
-        router.replace("/(tabs)");
-      } else {
-        console.error(JSON.stringify(signInAttempt, null, 2));
-        setErrorMessage("Sign in failed. Please try again.");
+      await signIn("password", { email, password, flow: "signIn" });
+      if (process.env.EXPO_OS === "ios") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     } catch (err: any) {
-      console.error(JSON.stringify(err, null, 2));
-      
-      // Check for specific error codes and provide user-friendly messages
-      const errorCode = err.errors?.[0]?.code;
-      let errorMessage = "Sign in failed";
-      
-      if (errorCode === "form_identifier_not_found") {
-        errorMessage = "No account found with this email. Please check your email or sign up for a new account.";
-      } else if (errorCode === "form_password_incorrect") {
-        errorMessage = "Incorrect password. Please try again.";
-      } else if (errorCode === "user_locked") {
-        errorMessage = "Your account has been locked. Please try again later.";
-      } else if (err.errors?.[0]?.message) {
-        errorMessage = err.errors[0].message;
+      console.error("Sign in error:", err);
+      const message =
+        err?.message || "Sign in failed. Please check your credentials.";
+      setErrorMessage(message);
+      if (process.env.EXPO_OS === "ios") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
-      
-      setErrorMessage(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const onGoogleSignInPress = async () => {
-    try {
-      const { createdSessionId, signIn: oAuthSignIn, signUp: oAuthSignUp } = await startOAuthFlow();
-      
-      if (createdSessionId) {
-        await setActive({ session: createdSessionId });
-        router.replace("/(tabs)");
-      } else {
-        // Handle cases where additional steps are needed
-        console.log("OAuth flow incomplete:", { signIn: oAuthSignIn, signUp: oAuthSignUp });
-        if (oAuthSignIn && oAuthSignIn.status === "complete") {
-          await setActive({ session: oAuthSignIn.createdSessionId });
-          router.replace("/(tabs)");
-        } else if (oAuthSignUp && oAuthSignUp.status === "complete") {
-          await setActive({ session: oAuthSignUp.createdSessionId });
-          router.replace("/(tabs)");
-        }
-      }
-    } catch (err: any) {
-      console.error("Google OAuth error:", JSON.stringify(err, null, 2));
-      Alert.alert("Error", "Google sign in failed. Please try again.");
-    }
-  };
-
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.container}
-    >
-      <View style={styles.content}>
-        <Text style={styles.title}>Welcome Back</Text>
-        <Text style={styles.subtitle}>Sign in to continue</Text>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <Animated.View
+        style={[{ flex: 1, backgroundColor: colors.bg }, keyboardStyle]}
+      >
+        <View style={{ flex: 1, justifyContent: "center", paddingHorizontal: 28 }}>
+          {/* Brand mark */}
+          <Animated.View
+            entering={FadeIn.duration(600)}
+            style={{ alignItems: "center", marginBottom: 48 }}
+          >
+            <View
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 20,
+                borderCurve: "continuous",
+                backgroundColor: "rgba(0, 229, 153, 0.12)",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 20,
+                borderWidth: 1,
+                borderColor: "rgba(0, 229, 153, 0.2)",
+              }}
+            >
+              <Text style={{ fontSize: 32, fontWeight: "800", color: colors.green }}>
+                A
+              </Text>
+            </View>
+            <Text
+              style={{
+                fontSize: 34,
+                fontWeight: "800",
+                color: colors.textPrimary,
+                letterSpacing: -0.5,
+              }}
+            >
+              Welcome back
+            </Text>
+            <Text
+              style={{
+                fontSize: 17,
+                color: colors.textSecondary,
+                marginTop: 8,
+              }}
+            >
+              Sign in to your Apex account
+            </Text>
+          </Animated.View>
 
-        {errorMessage ? (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{errorMessage}</Text>
-          </View>
-        ) : null}
+          {/* Error message */}
+          {errorMessage ? (
+            <Animated.View
+              entering={FadeInDown.duration(300).springify()}
+              layout={LinearTransition}
+              style={{
+                backgroundColor: "rgba(255, 107, 107, 0.1)",
+                borderRadius: 12,
+                borderCurve: "continuous",
+                padding: 14,
+                marginBottom: 20,
+                borderWidth: 1,
+                borderColor: "rgba(255, 107, 107, 0.25)",
+              }}
+            >
+              <Text
+                selectable
+                style={{
+                  color: colors.red,
+                  fontSize: 14,
+                  textAlign: "center",
+                  lineHeight: 20,
+                }}
+              >
+                {errorMessage}
+              </Text>
+            </Animated.View>
+          ) : null}
 
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor={colors.textTertiary}
-          value={emailAddress}
-          onChangeText={setEmailAddress}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
+          {/* Form fields */}
+          <Animated.View
+            entering={FadeInDown.delay(100).duration(500)}
+            style={{ gap: 14 }}
+          >
+            <View>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "600",
+                  color: colors.textSecondary,
+                  marginBottom: 8,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                }}
+              >
+                Email
+              </Text>
+              <TextInput
+                style={{
+                  backgroundColor: colors.surface1,
+                  borderRadius: 14,
+                  borderCurve: "continuous",
+                  paddingHorizontal: 18,
+                  paddingVertical: 16,
+                  fontSize: 17,
+                  color: colors.textPrimary,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+                placeholder="you@example.com"
+                placeholderTextColor={colors.textTertiary}
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoComplete="email"
+                textContentType="emailAddress"
+                returnKeyType="next"
+              />
+            </View>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor={colors.textTertiary}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
+            <View>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "600",
+                  color: colors.textSecondary,
+                  marginBottom: 8,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                }}
+              >
+                Password
+              </Text>
+              <TextInput
+                style={{
+                  backgroundColor: colors.surface1,
+                  borderRadius: 14,
+                  borderCurve: "continuous",
+                  paddingHorizontal: 18,
+                  paddingVertical: 16,
+                  fontSize: 17,
+                  color: colors.textPrimary,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+                placeholder="Enter your password"
+                placeholderTextColor={colors.textTertiary}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoComplete="password"
+                textContentType="password"
+                returnKeyType="go"
+                onSubmitEditing={onSignInPress}
+              />
+            </View>
+          </Animated.View>
 
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={onSignInPress}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Sign In</Text>
-          )}
-        </TouchableOpacity>
+          {/* Sign in button */}
+          <Animated.View entering={FadeInDown.delay(200).duration(500)}>
+            <Pressable
+              onPress={onSignInPress}
+              disabled={loading}
+              style={({ pressed }) => ({
+                backgroundColor: colors.green,
+                borderRadius: 14,
+                borderCurve: "continuous",
+                paddingVertical: 18,
+                alignItems: "center",
+                marginTop: 24,
+                opacity: loading ? 0.6 : pressed ? 0.85 : 1,
+                transform: [{ scale: pressed ? 0.98 : 1 }],
+                boxShadow: "0 4px 16px rgba(0, 229, 153, 0.3)",
+              })}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text
+                  style={{
+                    color: "#fff",
+                    fontSize: 17,
+                    fontWeight: "700",
+                    letterSpacing: -0.2,
+                  }}
+                >
+                  Sign In
+                </Text>
+              )}
+            </Pressable>
+          </Animated.View>
 
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>OR</Text>
-          <View style={styles.dividerLine} />
+          {/* Footer */}
+          <Animated.View
+            entering={FadeInDown.delay(300).duration(500)}
+            style={{
+              flexDirection: "row",
+              justifyContent: "center",
+              alignItems: "center",
+              marginTop: 28,
+              gap: 4,
+            }}
+          >
+            <Text style={{ color: colors.textSecondary, fontSize: 15 }}>
+              Don&apos;t have an account?
+            </Text>
+            <Link href="/(auth)/sign-up" asChild>
+              <Pressable hitSlop={8}>
+                <Text
+                  style={{
+                    color: colors.green,
+                    fontSize: 15,
+                    fontWeight: "600",
+                  }}
+                >
+                  Sign Up
+                </Text>
+              </Pressable>
+            </Link>
+          </Animated.View>
         </View>
-
-        <TouchableOpacity
-          style={styles.googleButton}
-          onPress={onGoogleSignInPress}
-        >
-          <Text style={styles.googleButtonText}>Continue with Google</Text>
-        </TouchableOpacity>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Don&apos;t have an account? </Text>
-          <Link href="/(auth)/sign-up" asChild>
-            <TouchableOpacity>
-              <Text style={styles.link}>Sign Up</Text>
-            </TouchableOpacity>
-          </Link>
-        </View>
-      </View>
-    </KeyboardAvoidingView>
+      </Animated.View>
+    </TouchableWithoutFeedback>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  content: {
-    flex: 1,
-    justifyContent: "center",
-    paddingHorizontal: 20,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: colors.textPrimary,
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    marginBottom: 40,
-    textAlign: "center",
-  },
-  input: {
-    backgroundColor: colors.surface1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: colors.textPrimary,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  button: {
-    backgroundColor: colors.green,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: 24,
-  },
-  footerText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-  },
-  link: {
-    color: colors.green,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  divider: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.border,
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    color: colors.textTertiary,
-    fontSize: 14,
-  },
-  googleButton: {
-    backgroundColor: colors.surface1,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 16,
-  },
-  googleButtonText: {
-    color: colors.textPrimary,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  errorContainer: {
-    backgroundColor: "rgba(255,107,107,0.1)",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255,107,107,0.3)",
-  },
-  errorText: {
-    color: colors.red,
-    fontSize: 14,
-    textAlign: "center",
-  },
-});

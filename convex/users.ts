@@ -1,66 +1,27 @@
 import { query, mutation, internalMutation, QueryCtx, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 // Helper to get user (read-only)
 async function getUser(ctx: QueryCtx | MutationCtx) {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) return null;
+  const userId = await getAuthUserId(ctx);
+  if (!userId) return null;
 
-  return await ctx.db
-    .query("users")
-    .withIndex("by_clerk_id", q => q.eq("clerkId", identity.subject))
-    .first();
+  return await ctx.db.get(userId);
 }
 
 // Helper to ensure user exists (for mutations only)
 export async function ensureUser(ctx: MutationCtx) {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) return null;
+  const userId = await getAuthUserId(ctx);
+  if (!userId) return null;
 
-  let user = await ctx.db
-    .query("users")
-    .withIndex("by_clerk_id", q => q.eq("clerkId", identity.subject))
-    .first();
-
-  // Auto-create user if doesn't exist
-  if (!user) {
-    const userId = await ctx.db.insert("users", {
-      clerkId: identity.subject,
-      email: identity.email,
-      name: identity.name,
-    });
-    user = await ctx.db.get(userId);
-  }
-
-  return user;
+  return await ctx.db.get(userId);
 }
 
 // Get current user
 export const getCurrent = query({
   handler: async (ctx) => {
     return await getUser(ctx);
-  },
-});
-
-// Create or update user from Clerk webhook (internal only - for webhook setup if desired)
-export const upsertFromClerk = internalMutation({
-  args: {
-    clerkId: v.string(),
-    email: v.optional(v.string()),
-    name: v.optional(v.string()),
-  },
-  handler: async (ctx, { clerkId, email, name }) => {
-    const existing = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", q => q.eq("clerkId", clerkId))
-      .first();
-
-    if (existing) {
-      await ctx.db.patch(existing._id, { email, name });
-      return existing._id;
-    } else {
-      return await ctx.db.insert("users", { clerkId, email, name });
-    }
   },
 });
 
@@ -77,14 +38,10 @@ export const updatePreferences = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", q => q.eq("clerkId", identity.subject))
-      .first();
-
+    const user = await ctx.db.get(userId);
     if (!user) throw new Error("User not found");
 
     const patch: Record<string, unknown> = {};
@@ -93,7 +50,7 @@ export const updatePreferences = mutation({
       patch.notificationPreferences = args.notificationPreferences;
     }
 
-    await ctx.db.patch(user._id, patch);
+    await ctx.db.patch(userId, patch);
   },
 });
 
@@ -101,44 +58,24 @@ export const updatePreferences = mutation({
 export const updateCountry = mutation({
   args: { country: v.string() },
   handler: async (ctx, { country }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
-    let user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", q => q.eq("clerkId", identity.subject))
-      .first();
-
-    if (!user) {
-      // Auto-create user if doesn't exist yet
-      const userId = await ctx.db.insert("users", {
-        clerkId: identity.subject,
-        email: identity.email,
-        name: identity.name,
-        country,
-      });
-      return userId;
-    }
-
-    await ctx.db.patch(user._id, { country });
+    await ctx.db.patch(userId, { country });
   },
 });
 
 // Delete user and their data (internal only)
 export const deleteUser = internalMutation({
-  args: { clerkId: v.string() },
-  handler: async (ctx, { clerkId }) => {
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", q => q.eq("clerkId", clerkId))
-      .first();
-
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const user = await ctx.db.get(userId);
     if (!user) return;
 
     // Delete all user's bikes
     const bikes = await ctx.db
       .query("bikes")
-      .withIndex("by_user", q => q.eq("userId", clerkId))
+      .withIndex("by_user", q => q.eq("userId", userId))
       .collect();
 
     for (const bike of bikes) {
@@ -146,6 +83,6 @@ export const deleteUser = internalMutation({
     }
 
     // Delete user
-    await ctx.db.delete(user._id);
+    await ctx.db.delete(userId);
   },
 });

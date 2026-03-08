@@ -1,6 +1,7 @@
 import { query, mutation, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 // ─── Internal mutations (called by inspection action) ────────────────────────
 
@@ -37,8 +38,8 @@ export const setBikeInspectionStatus = internalMutation({
 export const listByBike = query({
   args: { bikeId: v.id("bikes") },
   handler: async (ctx, { bikeId }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return [];
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
 
     const items = await ctx.db
       .query("inspectionItems")
@@ -46,7 +47,7 @@ export const listByBike = query({
       .collect();
 
     return items
-      .filter((i) => i.userId === identity.subject)
+      .filter((i) => i.userId === userId)
       .sort((a, b) => a.order - b.order);
   },
 });
@@ -60,12 +61,12 @@ export const saveResponse = mutation({
     response: v.string(),
   },
   handler: async (ctx, { itemId, response }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const item = await ctx.db.get(itemId);
     if (!item) throw new Error("Item not found");
-    if (item.userId !== identity.subject) throw new Error("Unauthorized");
+    if (item.userId !== userId) throw new Error("Unauthorized");
 
     await ctx.db.patch(itemId, { response });
   },
@@ -75,12 +76,12 @@ export const saveResponse = mutation({
 export const completeInspection = mutation({
   args: { bikeId: v.id("bikes") },
   handler: async (ctx, { bikeId }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const bike = await ctx.db.get(bikeId);
     if (!bike) throw new Error("Bike not found");
-    if (bike.userId !== identity.subject) throw new Error("Unauthorized");
+    if (bike.userId !== userId) throw new Error("Unauthorized");
 
     // Get all inspection items with responses
     const items = await ctx.db
@@ -88,7 +89,7 @@ export const completeInspection = mutation({
       .withIndex("by_bike", (q) => q.eq("bikeId", bikeId))
       .collect();
 
-    const userItems = items.filter((i) => i.userId === identity.subject);
+    const userItems = items.filter((i) => i.userId === userId);
 
     // Send all inspection items with full context — let the AI judge severity
     const sortedItems = userItems.sort((a, b) => a.order - b.order);
@@ -112,15 +113,12 @@ export const completeInspection = mutation({
     await ctx.db.patch(bikeId, { inspectionStatus: "complete" });
 
     // Look up user's country
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .first();
+    const user = await ctx.db.get(userId);
 
-    // Generate the plan — only problem items are passed, good items are excluded entirely
+    // Generate the plan
     await ctx.scheduler.runAfter(0, internal.ai.generateMaintenancePlan, {
       bikeId,
-      userId: identity.subject,
+      userId,
       make: bike.make,
       model: bike.model,
       year: bike.year,
@@ -141,12 +139,12 @@ export const completeInspection = mutation({
 export const resetForInspection = mutation({
   args: { bikeId: v.id("bikes") },
   handler: async (ctx, { bikeId }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const bike = await ctx.db.get(bikeId);
     if (!bike) throw new Error("Bike not found");
-    if (bike.userId !== identity.subject) throw new Error("Unauthorized");
+    if (bike.userId !== userId) throw new Error("Unauthorized");
 
     // Delete all plans for this bike
     const plans = await ctx.db
@@ -197,12 +195,12 @@ export const resetForInspection = mutation({
 export const startInspection = mutation({
   args: { bikeId: v.id("bikes") },
   handler: async (ctx, { bikeId }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     const bike = await ctx.db.get(bikeId);
     if (!bike) throw new Error("Bike not found");
-    if (bike.userId !== identity.subject) throw new Error("Unauthorized");
+    if (bike.userId !== userId) throw new Error("Unauthorized");
 
     // Delete any existing inspection items (in case of retry after error)
     const existing = await ctx.db
@@ -210,7 +208,7 @@ export const startInspection = mutation({
       .withIndex("by_bike", (q) => q.eq("bikeId", bikeId))
       .collect();
     for (const item of existing) {
-      if (item.userId === identity.subject) {
+      if (item.userId === userId) {
         await ctx.db.delete(item._id);
       }
     }
@@ -220,7 +218,7 @@ export const startInspection = mutation({
 
     await ctx.scheduler.runAfter(0, internal.inspection.generateChecklist, {
       bikeId,
-      userId: identity.subject,
+      userId,
       make: bike.make,
       model: bike.model,
       year: bike.year,

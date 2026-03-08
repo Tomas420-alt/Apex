@@ -1,12 +1,19 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { authTables } from "@convex-dev/auth/server";
 
 export default defineSchema({
+  ...authTables,
   users: defineTable({
-    clerkId: v.string(),
-    email: v.optional(v.string()),
+    // Convex Auth fields
     name: v.optional(v.string()),
+    image: v.optional(v.string()),
+    email: v.optional(v.string()),
+    emailVerificationTime: v.optional(v.number()),
     phone: v.optional(v.string()),
+    phoneVerificationTime: v.optional(v.number()),
+    isAnonymous: v.optional(v.boolean()),
+    // Custom app fields
     hasCompletedOnboarding: v.optional(v.boolean()),
     country: v.optional(v.string()),
     notificationPreferences: v.optional(
@@ -16,7 +23,7 @@ export default defineSchema({
         email: v.boolean(),
       })
     ),
-  }).index("by_clerk_id", ["clerkId"]),
+  }).index("email", ["email"]),
 
   bikes: defineTable({
     userId: v.string(),
@@ -34,7 +41,7 @@ export default defineSchema({
     storageType: v.optional(v.string()),
     experienceLevel: v.optional(v.string()),
     maintenanceComfort: v.optional(v.string()),
-    inspectionStatus: v.optional(v.string()), // "pending" | "complete"
+    inspectionStatus: v.optional(v.string()),
   }).index("by_user", ["userId"]),
 
   inspectionItems: defineTable({
@@ -43,7 +50,7 @@ export default defineSchema({
     name: v.string(),
     description: v.string(),
     category: v.string(),
-    responseType: v.string(),    // "choice" | "number" | "text"
+    responseType: v.string(),
     options: v.optional(v.array(v.string())),
     unit: v.optional(v.string()),
     response: v.optional(v.string()),
@@ -58,7 +65,7 @@ export default defineSchema({
     generatedAt: v.number(),
     totalEstimatedCost: v.number(),
     nextServiceDate: v.optional(v.string()),
-    status: v.string(), // "active" | "archived"
+    status: v.string(),
   })
     .index("by_bike", ["bikeId"])
     .index("by_user", ["userId"]),
@@ -71,8 +78,8 @@ export default defineSchema({
     description: v.optional(v.string()),
     intervalKm: v.optional(v.number()),
     intervalMonths: v.optional(v.number()),
-    priority: v.string(), // "low" | "medium" | "high" | "critical"
-    status: v.string(), // "pending" | "due" | "overdue" | "completed" | "skipped"
+    priority: v.string(),
+    status: v.string(),
     estimatedCostUsd: v.optional(v.number()),
     estimatedLaborCostUsd: v.optional(v.number()),
     dueDate: v.optional(v.string()),
@@ -94,8 +101,8 @@ export default defineSchema({
     supplier: v.optional(v.string()),
     url: v.optional(v.string()),
     purchased: v.boolean(),
-    category: v.optional(v.string()), // "required" | "consumable" | "tool"
-    isAlternative: v.optional(v.boolean()), // deprecated — kept for existing data compatibility
+    category: v.optional(v.string()),
+    isAlternative: v.optional(v.boolean()),
   })
     .index("by_task", ["taskId"])
     .index("by_bike", ["bikeId"])
@@ -104,10 +111,10 @@ export default defineSchema({
   reminders: defineTable({
     taskId: v.id("maintenanceTasks"),
     userId: v.string(),
-    channel: v.string(), // "push" | "sms" | "email"
+    channel: v.string(),
     scheduledAt: v.number(),
     sentAt: v.optional(v.number()),
-    status: v.string(), // "scheduled" | "sent" | "failed" | "snoozed" | "cancelled"
+    status: v.string(),
     messageSid: v.optional(v.string()),
     emailId: v.optional(v.string()),
   })

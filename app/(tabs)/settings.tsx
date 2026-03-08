@@ -8,27 +8,24 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
-  Image,
   Switch,
   TextInput,
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LogOut, User, Mail, Shield, Phone, Bell } from 'lucide-react-native';
-import { useAuth, useUser } from '@clerk/clerk-expo';
-import * as SecureStore from 'expo-secure-store';
-import { useQuery, useMutation, useAction } from 'convex/react';
+import { useAuthActions } from '@convex-dev/auth/react';
+import { useConvexAuth, useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { colors } from '@/constants/theme';
 
 export default function SettingsScreen() {
-  const { signOut } = useAuth();
-  const { user, isLoaded } = useUser();
+  const { signOut } = useAuthActions();
+  const { isAuthenticated } = useConvexAuth();
   const convexUser = useQuery(api.users.getCurrent);
   const updatePreferences = useMutation(api.users.updatePreferences);
   const sendTestNotification = useAction(api.notifications.sendTest);
   const [isSigningOut, setIsSigningOut] = React.useState(false);
-  const [imageLoadError, setImageLoadError] = React.useState(false);
   const [testingSms, setTestingSms] = React.useState(false);
   const [testingEmail, setTestingEmail] = React.useState(false);
   const [phoneNumber, setPhoneNumber] = React.useState('');
@@ -36,11 +33,6 @@ export default function SettingsScreen() {
   const [smsEnabled, setSmsEnabled] = React.useState(false);
   const [emailEnabled, setEmailEnabled] = React.useState(false);
   const [hydrated, setHydrated] = React.useState(false);
-
-  React.useEffect(() => {
-    // Reset image error state when user image URL changes
-    setImageLoadError(false);
-  }, [user?.imageUrl]);
 
   // Hydrate local state from backend
   React.useEffect(() => {
@@ -120,27 +112,9 @@ export default function SettingsScreen() {
   };
 
   const performSignOut = async () => {
-    console.log("Confirming sign out");
     setIsSigningOut(true);
     try {
-      console.log("Starting sign out process");
-
-      // Clear any cached tokens first
-      try {
-        await Promise.all([
-          SecureStore.deleteItemAsync("__clerk_client_jwt"),
-          SecureStore.deleteItemAsync("__clerk_db_jwt"),
-          SecureStore.deleteItemAsync("__clerk_session_jwt"),
-        ]);
-        console.log("Tokens cleared");
-      } catch (tokenError) {
-        console.log("Token cleanup error (ignorable):", tokenError);
-      }
-
-      // Sign out from Clerk - this will trigger the automatic redirect in _layout.tsx
       await signOut();
-      console.log("Clerk sign out completed - automatic redirect should happen");
-
     } catch (error) {
       console.error("Sign out error:", error);
       if (Platform.OS === 'web') {
@@ -153,7 +127,7 @@ export default function SettingsScreen() {
     }
   };
 
-  if (!isLoaded) {
+  if (!isAuthenticated || convexUser === undefined) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
@@ -179,27 +153,16 @@ export default function SettingsScreen() {
         <View style={styles.profileSection}>
           <View style={styles.profileCard}>
             <View style={styles.avatarContainer}>
-              {user?.imageUrl && !imageLoadError ? (
-                <Image
-                  source={{ uri: user.imageUrl }}
-                  style={styles.avatar}
-                  onError={() => {
-                    console.log('Profile image failed to load');
-                    setImageLoadError(true);
-                  }}
-                />
-              ) : (
-                <User size={32} color={colors.textTertiary} strokeWidth={1.5} />
-              )}
+              <User size={32} color={colors.textTertiary} strokeWidth={1.5} />
             </View>
             <View style={styles.profileInfo}>
               <Text style={styles.profileName}>
-                {user?.fullName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || 'User'}
+                {convexUser?.name || 'User'}
               </Text>
               <View style={styles.profileDetail}>
                 <Mail size={14} color={colors.textSecondary} strokeWidth={2} />
                 <Text style={styles.profileEmail}>
-                  {user?.primaryEmailAddress?.emailAddress || 'No email'}
+                  {convexUser?.email || 'No email'}
                 </Text>
               </View>
             </View>
@@ -345,7 +308,7 @@ export default function SettingsScreen() {
             Apex v1.0.0
           </Text>
           <Text style={styles.sectionText}>
-            Built with Expo, Convex, and Clerk
+            Built with Expo and Convex
           </Text>
           <Text style={styles.sectionText}>
             Real-time sync across all your devices
@@ -461,11 +424,6 @@ const styles = StyleSheet.create({
   },
   disabledItem: {
     opacity: 0.6,
-  },
-  avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
   },
   phoneRow: {
     flexDirection: 'row',

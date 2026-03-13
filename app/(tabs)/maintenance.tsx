@@ -186,7 +186,7 @@ export default function MaintenanceScreen() {
                   key={task._id}
                   task={task}
                   bikeName={bikeNameMap.get(task.bikeId) ?? 'Unknown Bike'}
-                  onPress={() => router.push(`/bike/${task.bikeId}` as any)}
+                  onPress={() => router.push(`/bike/${task.bikeId}?taskId=${task._id}` as any)}
                   onComplete={(id) =>
                     setTaskToComplete({ id, name: task.name })
                   }

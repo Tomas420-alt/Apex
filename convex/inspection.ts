@@ -13,6 +13,48 @@ const getOpenAIClient = () => {
   return new OpenAI({ apiKey });
 };
 
+// Step 1: Web search to research exact bike specs before generating checklist
+async function researchBikeSpecs(
+  openai: OpenAI,
+  year: number,
+  make: string,
+  model: string
+): Promise<string> {
+  try {
+    console.log(`[Inspection] Researching ${year} ${make} ${model} specs via web search...`);
+    const response = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      web_search_options: {
+        search_context_size: "medium",
+      },
+      messages: [
+        {
+          role: "user",
+          content: `Research the exact technical specifications for a ${year} ${make} ${model} motorcycle. I need to know:
+
+1. Fuel system: Is it carbureted or fuel injected? What exact system (e.g. Mikuni BSR36 carbs, Keihin FI, etc.)?
+2. Cooling: Air-cooled, liquid-cooled, or oil-cooled?
+3. Drive: Chain, belt, or shaft drive?
+4. Clutch: Cable-operated or hydraulic?
+5. ABS: Does this specific year have ABS (standard or optional)?
+6. Valve adjustment: Shim-under-bucket, screw-type, or hydraulic lifters?
+7. Engine type and displacement
+8. Any known common issues, recalls, or weak points specific to this year and model
+
+Be precise about the EXACT YEAR — many models changed specs between generations. Return factual specs only.`,
+        },
+      ],
+    } as any);
+
+    const textContent = response.choices[0]?.message?.content || "";
+    console.log(`[Inspection] Research complete: ${textContent.length} chars`);
+    return textContent || "No research results available.";
+  } catch (error: any) {
+    console.error(`[Inspection] Web search FAILED: ${error.message}`);
+    return "Web search unavailable — rely on training data only, and when uncertain about a component, use generic descriptions rather than specifying carbureted/fuel-injected etc.";
+  }
+}
+
 const InspectionItemSchema = z.object({
   name: z.string(),
   description: z.string(),
@@ -41,9 +83,15 @@ export const generateChecklist = internalAction({
     try {
       const openai = getOpenAIClient();
 
+      // Step 1: Research bike specs via web search
+      const bikeResearch = await researchBikeSpecs(openai, year, make, model);
+
       const notesInfo = notes ? `\nAdditional notes: ${notes}` : "";
 
       const prompt = `You are an expert motorcycle mechanic who specializes in ${make} motorcycles, particularly the ${model}. A user has a ${year} ${make} ${model} with ${mileage} km on the odometer but NO SERVICE HISTORY — they don't know when anything was last done.${notesInfo}
+
+VERIFIED BIKE SPECIFICATIONS (from web research — use these as ground truth):
+${bikeResearch}
 
 Generate an inspection checklist of 12-18 items they should check on their bike RIGHT NOW before we can create an accurate maintenance plan.
 
@@ -52,8 +100,20 @@ CRITICAL ACCURACY RULE: Only include inspection items for components that ACTUAL
 - Do NOT ask about coolant if this bike is air-cooled only
 - Do NOT ask about drive shaft if this bike has chain drive
 - Do NOT ask about ABS components if this model year has no ABS
-- Do NOT ask about fuel injection if this bike is carbureted (or vice versa)
+- Do NOT ask about carburetors/petcocks if this bike is fuel injected
+- Do NOT ask about fuel injection if this bike is genuinely carbureted
 If you are not 100% certain a component exists on this exact model and year, leave it out.
+
+FUEL SYSTEM ACCURACY: Many motorcycles switched from carburetors to fuel injection mid-generation. You MUST get this right:
+- Research the EXACT year and market to determine fuel system type
+- For example: Suzuki SV650 2003+ (2nd gen) = fuel injected, NOT carbureted
+- When in doubt about fuel system type, use a GENERIC "Fuel System Check" item rather than specifying carbureted or fuel injected
+- Never confidently state a bike is carbureted or fuel injected unless you are certain for that specific year and model
+
+MANDATORY FUEL SYSTEM CHECK: You MUST always include a fuel system inspection item, regardless of type:
+- For fuel-injected bikes: Check fuel pump priming (key-on buzz), inspect fuel lines/hoses for cracks or leaks, check for fuel smell, throttle body sync (multi-cylinder), fuel filter condition if accessible
+- For carbureted bikes: Check petcock operation, fuel lines, carb inlets, float bowls for leaks
+- Label it accurately: "Fuel System Check (fuel injected)" or "Fuel System Check (carbureted)" based on the verified specs above
 
 This checklist must be SPECIFIC to the ${year} ${make} ${model}. Do NOT just give a generic motorcycle checklist. You must include:
 

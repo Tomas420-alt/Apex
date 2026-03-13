@@ -22,7 +22,7 @@ interface Props {
   bikeNameMap: Map<string, string>;
   currentMonth: Date;
   onMonthChange: (month: Date) => void;
-  onTaskPress: (bikeId: string) => void;
+  onTaskPress: (bikeId: string, taskId: string) => void;
 }
 
 const DAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
@@ -178,6 +178,8 @@ export function MaintenanceCalendar({
                   borderColor && !isToday && styles.dayCellWithTask,
                   borderColor && !isToday && { borderColor },
                   isToday && styles.dayCellToday,
+                  isToday && borderColor && { borderColor },
+                  isToday && isSelected && styles.dayCellTodaySelected,
                   isSelected && !isToday && styles.dayCellSelected,
                 ]}
                 onPress={() => setSelectedDate(isSelected ? null : iso)}
@@ -186,8 +188,8 @@ export function MaintenanceCalendar({
                 <Text
                   style={[
                     styles.dayText,
-                    isToday && styles.dayTextToday,
-                    isSelected && !isToday && styles.dayTextSelected,
+                    isToday && !isSelected && styles.dayTextToday,
+                    (isSelected) && styles.dayTextSelected,
                   ]}
                 >
                   {day}
@@ -222,7 +224,7 @@ export function MaintenanceCalendar({
                 <TouchableOpacity
                   key={task._id}
                   style={[styles.taskRow, { borderLeftColor: priorityColor }]}
-                  onPress={() => onTaskPress(task.bikeId)}
+                  onPress={() => onTaskPress(task.bikeId, task._id)}
                   activeOpacity={0.7}
                 >
                   <View style={styles.taskInfo}>
@@ -317,8 +319,11 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   dayCellToday: {
-    backgroundColor: colors.blue,
-    borderColor: colors.blue,
+    backgroundColor: colors.bg,
+    borderColor: colors.bg,
+  },
+  dayCellTodaySelected: {
+    backgroundColor: colors.surface2,
   },
   dayCellSelected: {
     backgroundColor: colors.surface2,

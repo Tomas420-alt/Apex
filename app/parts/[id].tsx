@@ -222,7 +222,7 @@ export default function TaskPartsScreen() {
   };
 
   const totalCost = hasParts
-    ? parts.reduce((sum, p) => sum + (p.estimatedPrice ?? 0), 0)
+    ? parts.filter((p) => p.category !== 'tool').reduce((sum, p) => sum + (p.estimatedPrice ?? 0), 0)
     : 0;
   const purchasedCount = hasParts
     ? parts.filter((p) => p.purchased).length
@@ -337,6 +337,8 @@ export default function TaskPartsScreen() {
                 </Text>
               </View>
             </View>
+
+            <Text style={styles.priceDisclaimer}>Prices are estimated and may differ from the retailer.</Text>
 
             {/* Required parts */}
             {renderSection('required', requiredParts)}
@@ -498,6 +500,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: colors.textPrimary,
+  },
+  priceDisclaimer: {
+    fontSize: 11,
+    color: colors.textTertiary,
+    textAlign: 'center',
+    marginTop: 6,
+    marginBottom: 2,
   },
   // Section headers
   sectionHeader: {

@@ -91,23 +91,26 @@ export const completeInspection = mutation({
 
     const userItems = items.filter((i) => i.userId === userId);
 
-    // Send all inspection items with full context — let the AI judge severity
+    // Filter out items the user reported as good — only send problems to the AI
+    const GOOD_RESPONSES = /^(good|ok|fine|clean|clear|normal|adequate|no issues|no leaks|within spec|n\/a|not applicable|no damage|no play|no wobble|smooth|firm|tight|dry|none)\b/i;
     const sortedItems = userItems.sort((a, b) => a.order - b.order);
 
+    const problemItems = sortedItems.filter((item) => {
+      const response = (item.response ?? "").trim();
+      if (!response || response === "Not checked") return false;
+      return !GOOD_RESPONSES.test(response);
+    });
+
     const formattedItems: string[] = [];
-    for (const item of sortedItems) {
-      const response = item.response ?? "Not checked";
-      let line = `- ${item.name} [${item.category}]: ${response}`;
+    for (const item of problemItems) {
+      let line = `- ${item.name} [${item.category}]: ${item.response}`;
       if (item.unit) line += ` ${item.unit}`;
-      if (item.options && item.options.length > 0) {
-        line += ` (options were: ${item.options.join(", ")})`;
-      }
       formattedItems.push(line);
     }
 
     const inspectionSummary = formattedItems.length > 0
-      ? `USER INSPECTION RESULTS — each item below shows what the user reported:\n${formattedItems.join("\n")}`
-      : "No inspection data available.";
+      ? `USER INSPECTION RESULTS — only items that need attention:\n${formattedItems.join("\n")}`
+      : undefined;
 
     // Mark inspection as complete
     await ctx.db.patch(bikeId, { inspectionStatus: "complete" });

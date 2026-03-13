@@ -192,28 +192,29 @@ export const generatePlan = mutation({
     // Look up user's country for localized labor cost estimates
     const user = await ctx.db.get(userId);
 
-    // Include inspection data if available
+    // Include inspection data if available — only items with problems
     let inspectionSummary: string | undefined;
     if (bike.inspectionStatus === "complete") {
+      const GOOD_RESPONSES = /^(good|ok|fine|clean|clear|normal|adequate|no issues|no leaks|within spec|n\/a|not applicable|no damage|no play|no wobble|smooth|firm|tight|dry|none)\b/i;
       const items = await ctx.db
         .query("inspectionItems")
         .withIndex("by_bike", (q) => q.eq("bikeId", bikeId))
         .collect();
-      const sorted = items
+      const problemItems = items
         .filter((i) => i.userId === userId)
+        .filter((i) => {
+          const response = (i.response ?? "").trim();
+          if (!response || response === "Not checked") return false;
+          return !GOOD_RESPONSES.test(response);
+        })
         .sort((a, b) => a.order - b.order);
-      if (sorted.length > 0) {
-        const lines: string[] = [];
-        for (const item of sorted) {
-          const response = item.response ?? "Not checked";
-          let line = `- ${item.name} [${item.category}]: ${response}`;
+      if (problemItems.length > 0) {
+        const lines = problemItems.map((item) => {
+          let line = `- ${item.name} [${item.category}]: ${item.response}`;
           if (item.unit) line += ` ${item.unit}`;
-          if (item.options && item.options.length > 0) {
-            line += ` (options were: ${item.options.join(", ")})`;
-          }
-          lines.push(line);
-        }
-        inspectionSummary = `USER INSPECTION RESULTS — each item below shows what the user reported:\n${lines.join("\n")}`;
+          return line;
+        });
+        inspectionSummary = `USER INSPECTION RESULTS — only items that need attention:\n${lines.join("\n")}`;
       }
     }
 

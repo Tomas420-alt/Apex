@@ -389,10 +389,18 @@ export const listForCalendar = query({
 
             // Only include if within requested range
             if (projectedDate >= startDate) {
+              // Downgrade critical/high to medium for projected future occurrences.
+              // The original urgent task (due now) stays critical/high,
+              // but future recurrences are normal baseline maintenance.
+              const projectedPriority =
+                task.priority === "critical" || task.priority === "high"
+                  ? "medium"
+                  : task.priority;
+
               results.push({
                 _id: `${task._id}_r${occurrence}`,
                 name: task.name,
-                priority: task.priority,
+                priority: projectedPriority,
                 status: computeStatus(projectedDate),
                 dueDate: projectedDate,
                 bikeId: task.bikeId,

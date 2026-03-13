@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   Pressable,
   Modal,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -150,7 +149,9 @@ export default function GarageScreen() {
 
       <View style={styles.header}>
         <View style={styles.headerRow}>
-          <Image source={require('@/assets/images/icon.png')} style={styles.headerLogo} />
+          <View style={styles.headerLogo}>
+            <Wrench size={22} color={colors.accent} />
+          </View>
           <View>
             <Text style={styles.title}>My Garage</Text>
             <Text style={styles.subtitle}>
@@ -187,7 +188,7 @@ export default function GarageScreen() {
             bikeNameMap={bikeNameMap}
             currentMonth={calendarMonth}
             onMonthChange={setCalendarMonth}
-            onTaskPress={(bikeId) => router.push(`/bike/${bikeId}` as any)}
+            onTaskPress={(bikeId, taskId) => router.push(`/bike/${bikeId}?taskId=${taskId}` as any)}
           />
         </ScrollView>
       )}
@@ -197,6 +198,15 @@ export default function GarageScreen() {
           <Plus size={24} color="#FFFFFF" />
         </TouchableOpacity>
       )}
+
+      {/* TEMP: Test onboarding — remove after testing */}
+      <TouchableOpacity
+        style={styles.testOnboardingBtn}
+        onPress={() => router.push('/onboarding' as any)}
+        activeOpacity={0.85}
+      >
+        <Text style={styles.testOnboardingText}>Test Onboarding</Text>
+      </TouchableOpacity>
 
       <Modal
         visible={bikeToDelete !== null}
@@ -257,6 +267,9 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 10,
     marginRight: 12,
+    backgroundColor: colors.surface2,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   title: {
     fontSize: 28,
@@ -467,5 +480,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  testOnboardingBtn: {
+    position: 'absolute',
+    bottom: 100,
+    alignSelf: 'center',
+    backgroundColor: colors.blue,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  testOnboardingText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

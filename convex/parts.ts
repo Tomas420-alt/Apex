@@ -32,12 +32,34 @@ export const saveParts = internalMutation({
       }
     }
 
+    // Check what tools the user already owns (purchased in previous tasks)
+    const userId = parts[0]?.userId;
+    let ownedToolsLower: string[] = [];
+    if (userId) {
+      const allUserParts = await ctx.db
+        .query("parts")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .collect();
+      ownedToolsLower = allUserParts
+        .filter((p) => p.purchased && p.category === "tool")
+        .map((p) => p.name.toLowerCase());
+    }
+
     const insertedIds: string[] = [];
 
     for (const part of parts) {
+      // Pre-mark tools as purchased if user already owns an equivalent one
+      const isOwnedTool =
+        part.category === "tool" &&
+        ownedToolsLower.some(
+          (owned) =>
+            part.name.toLowerCase().includes(owned) ||
+            owned.includes(part.name.toLowerCase())
+        );
+
       const id = await ctx.db.insert("parts", {
         ...part,
-        purchased: false,
+        purchased: isOwnedTool,
       });
       insertedIds.push(id);
     }
@@ -110,6 +132,10 @@ export const generateForTask = mutation({
     if (!task) throw new Error("Task not found");
     if (task.userId !== userId) throw new Error("Unauthorized");
 
+    // Look up user's country for localized parts links
+    const user = await ctx.db.get(userId);
+    const country = (user as any)?.country;
+
     await ctx.scheduler.runAfter(0, internal.ai.generatePartsList, {
       taskId,
       bikeId,
@@ -119,6 +145,7 @@ export const generateForTask = mutation({
       make: bike.make,
       model: bike.model,
       year: bike.year,
+      country,
     });
   },
 });

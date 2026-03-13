@@ -388,7 +388,9 @@ function EmptyPlan({ isGenerating, onGenerate }: EmptyPlanProps) {
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function BikeDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, taskId: rawTaskId } = useLocalSearchParams<{ id: string; taskId?: string }>();
+  // Expo Router may append suffixes like _r2 for repeated navigations — strip them
+  const scrollToTaskId = rawTaskId?.replace(/_r\d+$/, '');
   const bikeId = id as Id<'bikes'>;
 
   const bike = useQuery(api.bikes.get, { id: bikeId }) as BikeDoc | null | undefined;
@@ -408,6 +410,10 @@ export default function BikeDetailScreen() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [completingTaskId, setCompletingTaskId] = useState<Id<'maintenanceTasks'> | null>(null);
   const tasksSnapshotRef = useRef<string>('');
+  const scrollViewRef = useRef<ScrollView>(null);
+  const hasScrolledRef = useRef(false);
+  const taskLayoutsRef = useRef<Record<string, number>>({});
+  const [layoutsReady, setLayoutsReady] = useState(false);
 
   const isLoading = bike === undefined || plan === undefined;
 
@@ -419,6 +425,18 @@ export default function BikeDetailScreen() {
       setIsGenerating(false);
     }
   }, [rawTasks, isGenerating]);
+
+  // Scroll to the target task once all task layouts have been captured
+  useEffect(() => {
+    if (!scrollToTaskId || hasScrolledRef.current || !layoutsReady) return;
+    const y = taskLayoutsRef.current[scrollToTaskId];
+    if (y !== undefined) {
+      hasScrolledRef.current = true;
+      requestAnimationFrame(() => {
+        scrollViewRef.current?.scrollTo({ y: y - 10, animated: true });
+      });
+    }
+  }, [scrollToTaskId, layoutsReady]);
 
   // Safety timeout
   useEffect(() => {
@@ -562,6 +580,7 @@ export default function BikeDetailScreen() {
       </View>
 
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
@@ -700,17 +719,27 @@ export default function BikeDetailScreen() {
             ) : null}
 
             {/* Task cards */}
-            {sortedTasks.map((task) => (
-              <TaskCard
+            {sortedTasks.map((task, index) => (
+              <View
                 key={task._id}
-                task={task}
-                bikeId={bikeId}
-                onComplete={handleCompleteTask}
-                onViewParts={handleViewParts}
-                isCompleting={completingTaskId === task._id}
-                currency={currency}
-                currencyIconName={currencyIconName}
-              />
+                onLayout={(e) => {
+                  taskLayoutsRef.current[task._id] = e.nativeEvent.layout.y;
+                  // Signal ready after the last task lays out
+                  if (index === sortedTasks.length - 1 && scrollToTaskId) {
+                    setLayoutsReady(true);
+                  }
+                }}
+              >
+                <TaskCard
+                  task={task}
+                  bikeId={bikeId}
+                  onComplete={handleCompleteTask}
+                  onViewParts={handleViewParts}
+                  isCompleting={completingTaskId === task._id}
+                  currency={currency}
+                  currencyIconName={currencyIconName}
+                />
+              </View>
             ))}
 
             {/* Regenerate plan button */}

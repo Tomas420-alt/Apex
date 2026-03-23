@@ -1,4 +1,4 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
@@ -158,6 +158,27 @@ export const updateBikeImage = mutation({
   },
 });
 
+// Update bike image from a storage ID (resolves to serving URL)
+export const updateBikeImageFromStorage = mutation({
+  args: {
+    bikeId: v.id("bikes"),
+    storageId: v.id("_storage"),
+  },
+  handler: async (ctx, { bikeId, storageId }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const bike = await ctx.db.get(bikeId);
+    if (!bike) throw new Error("Bike not found");
+    if (bike.userId !== userId) throw new Error("Unauthorized");
+
+    const imageUrl = await ctx.storage.getUrl(storageId);
+    if (!imageUrl) throw new Error("Failed to get image URL");
+
+    await ctx.db.patch(bikeId, { imageUrl });
+  },
+});
+
 // Quick update just the mileage field
 export const updateMileage = mutation({
   args: {
@@ -191,6 +212,11 @@ export const generatePlan = mutation({
 
     // Look up user's country for localized labor cost estimates
     const user = await ctx.db.get(userId);
+
+    // Gate behind paid subscription
+    if (user?.subscriptionStatus !== "active") {
+      throw new Error("Active subscription required to generate AI maintenance plans");
+    }
 
     // Include inspection data if available — only items with problems
     let inspectionSummary: string | undefined;
@@ -233,6 +259,33 @@ export const generatePlan = mutation({
       climate: bike.climate,
       storageType: bike.storageType,
       inspectionData: inspectionSummary,
+    });
+  },
+});
+
+// Set AI-generated hero image on a bike (internal only — called by AI action)
+export const setHeroImage = internalMutation({
+  args: {
+    bikeId: v.id("bikes"),
+    heroImageUrl: v.string(),
+  },
+  handler: async (ctx, { bikeId, heroImageUrl }) => {
+    await ctx.db.patch(bikeId, { heroImageUrl });
+  },
+});
+
+// TEMP: Trigger hero image generation from client (for testing)
+export const triggerHeroGen = mutation({
+  args: {
+    bikeId: v.id("bikes"),
+    photoStorageId: v.id("_storage"),
+  },
+  handler: async (ctx, { bikeId, photoStorageId }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    await ctx.scheduler.runAfter(0, internal.ai.generateHeroImage, {
+      bikeId,
+      photoStorageId,
     });
   },
 });

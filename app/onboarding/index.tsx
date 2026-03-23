@@ -1,11 +1,16 @@
 import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { getLocales } from 'expo-localization';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
+import { CTAButton } from '@/components/onboarding/CTAButton';
 import { REGION_TO_COUNTRY, getCountryConfig } from '@/constants/localization';
 import { colors } from '@/constants/theme';
+import { HeadlightDRL } from '@/components/onboarding/HeadlightDRL';
+
+const PILLS = ['AI-powered', 'Personalized', 'Smart reminders'];
 
 export default function WelcomeScreen() {
   const router = useRouter();
@@ -32,36 +37,80 @@ export default function WelcomeScreen() {
 
   return (
     <OnboardingScreen
-      title="Keep your motorcycle running perfectly"
-      subtitle="We'll create a personalized maintenance system for your bike."
+      title="Your bike deserves better"
+      subtitle="Join 12,000+ riders who never miss a service"
       showProgress={false}
+      showBack={false}
     >
-      <View style={styles.spacer} />
-      <TouchableOpacity
-        style={styles.button}
-        activeOpacity={0.8}
-        onPress={() => router.push('/onboarding/name')}
+      <Animated.View
+        entering={FadeInUp.duration(400).delay(300)}
+        style={styles.pillsRow}
       >
-        <Text style={styles.buttonText}>Start setup</Text>
-      </TouchableOpacity>
+        {PILLS.map((pill) => (
+          <View key={pill} style={styles.pill}>
+            <Text style={styles.pillText}>{pill}</Text>
+          </View>
+        ))}
+      </Animated.View>
+
+      <View style={styles.spacer} />
+
+      {/* Headlight DRL animation */}
+      <Animated.View
+        entering={FadeInUp.duration(500).delay(500)}
+        style={styles.headlightContainer}
+      >
+        <HeadlightDRL />
+      </Animated.View>
+
+      <View style={styles.spacer} />
+
+      <CTAButton
+        label="Get started"
+        onPress={() => router.push('/onboarding/name')}
+        arrow
+      />
+      <Animated.Text
+        entering={FadeInUp.duration(300).delay(400)}
+        style={styles.frictionText}
+      >
+        Takes 2 minutes
+      </Animated.Text>
     </OnboardingScreen>
   );
 }
 
 const styles = StyleSheet.create({
+  pillsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  pill: {
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,229,153,0.3)',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    backgroundColor: 'rgba(0,229,153,0.06)',
+  },
+  pillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.green,
+  },
+  headlightContainer: {
+    marginTop: 24,
+    alignItems: 'center',
+  },
   spacer: {
     flex: 1,
   },
-  button: {
-    backgroundColor: colors.green,
-    borderRadius: 16,
-    paddingVertical: 18,
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '700',
+  frictionText: {
+    fontSize: 13,
+    color: colors.textTertiary,
+    textAlign: 'center',
+    marginTop: -8,
+    marginBottom: 16,
   },
 });

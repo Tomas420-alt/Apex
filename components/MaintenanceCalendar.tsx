@@ -273,10 +273,10 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   container: {
-    backgroundColor: colors.surface1,
+    backgroundColor: 'rgba(26,26,46,0.4)',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255,255,255,0.06)',
     padding: 16,
   },
   header: {

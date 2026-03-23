@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -7,27 +7,52 @@ import Animated, {
 } from 'react-native-reanimated';
 import { colors } from '@/constants/theme';
 
+const SEGMENTS = [
+  { label: 'About You', startStep: 1, endStep: 5 },
+  { label: 'Your Riding', startStep: 6, endStep: 10 },
+  { label: 'Your Bike', startStep: 11, endStep: 14 },
+  { label: 'Analysis', startStep: 15, endStep: 17 },
+  { label: 'Your Plan', startStep: 18, endStep: 20 },
+];
+
 interface ProgressBarProps {
   step: number;
-  totalSteps: number;
+  totalSteps?: number;
 }
 
-export function ProgressBar({ step, totalSteps }: ProgressBarProps) {
-  const progress = useSharedValue(0);
+function SegmentBar({ fillPercent }: { fillPercent: number }) {
+  const width = useSharedValue(0);
 
   useEffect(() => {
-    progress.value = withTiming(step / totalSteps, { duration: 400 });
-  }, [step, totalSteps]);
+    width.value = withTiming(fillPercent, { duration: 400 });
+  }, [fillPercent]);
 
-  const barStyle = useAnimatedStyle(() => ({
-    width: `${progress.value * 100}%`,
+  const fillStyle = useAnimatedStyle(() => ({
+    width: `${width.value}%`,
   }));
 
   return (
+    <View style={styles.segmentTrack}>
+      <Animated.View style={[styles.segmentFill, fillStyle]} />
+    </View>
+  );
+}
+
+export function ProgressBar({ step }: ProgressBarProps) {
+  return (
     <View style={styles.container}>
-      <Text style={styles.stepText}>Step {step} of {totalSteps}</Text>
-      <View style={styles.track}>
-        <Animated.View style={[styles.fill, barStyle]} />
+      <View style={styles.segmentsRow}>
+        {SEGMENTS.map((seg) => {
+          let fillPercent = 0;
+          if (step >= seg.endStep) {
+            fillPercent = 100;
+          } else if (step >= seg.startStep) {
+            const range = seg.endStep - seg.startStep + 1;
+            const progress = step - seg.startStep + 1;
+            fillPercent = (progress / range) * 100;
+          }
+          return <SegmentBar key={seg.label} fillPercent={fillPercent} />;
+        })}
       </View>
     </View>
   );
@@ -39,19 +64,18 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 8,
   },
-  stepText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.textSecondary,
-    marginBottom: 8,
+  segmentsRow: {
+    flexDirection: 'row',
+    gap: 4,
   },
-  track: {
+  segmentTrack: {
+    flex: 1,
     height: 4,
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 2,
     overflow: 'hidden',
   },
-  fill: {
+  segmentFill: {
     height: '100%',
     backgroundColor: colors.green,
     borderRadius: 2,

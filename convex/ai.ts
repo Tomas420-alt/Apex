@@ -606,8 +606,14 @@ IMPORTANT: Do NOT create separate tasks for front and rear of the same component
     type TaskInput = z.infer<typeof MaintenanceTaskSchema>;
 
     // Calculate due dates deterministically from interval_months instead of trusting AI dates
-    // Base date: last service date if available, otherwise today
-    const baseDate = lastServiceDate ? new Date(lastServiceDate) : new Date();
+    // Base date: last service date if available and valid, otherwise today
+    let baseDate = new Date();
+    if (lastServiceDate) {
+      const parsed = new Date(lastServiceDate);
+      if (!isNaN(parsed.getTime())) {
+        baseDate = parsed;
+      }
+    }
 
     const hasInspectionIssues = !!inspectionData;
 
@@ -1038,5 +1044,112 @@ ${supplierPrompt}
     });
 
     return insertedIds;
+  },
+});
+
+// ─── AI Hero Image Generation ───────────────────────────────────
+// Takes user's bike photo + 2 reference images → generates a cinematic hero image
+// Only triggered during onboarding
+
+export const generateHeroImage = internalAction({
+  args: {
+    bikeId: v.id("bikes"),
+    photoStorageId: v.id("_storage"),
+  },
+  handler: async (ctx, { bikeId, photoStorageId }) => {
+    const openai = getOpenAIClient();
+
+    // 1. Fetch the user's uploaded bike photo from Convex storage
+    const userPhotoUrl = await ctx.storage.getUrl(photoStorageId);
+    if (!userPhotoUrl) {
+      console.error("[AI Hero] Could not get URL for user photo");
+      return;
+    }
+
+    // 2. Get reference images from Convex storage via storage IDs in env vars
+    const bgStorageId = process.env.HERO_REF_BACKGROUND_STORAGE_ID;
+    const sizingStorageId = process.env.HERO_REF_SIZING_STORAGE_ID;
+    if (!bgStorageId || !sizingStorageId) {
+      console.error("[AI Hero] Reference image storage IDs not configured. Set HERO_REF_BACKGROUND_STORAGE_ID and HERO_REF_SIZING_STORAGE_ID env vars.");
+      return;
+    }
+
+    const backgroundUrl = await ctx.storage.getUrl(bgStorageId as any);
+    const sizingUrl = await ctx.storage.getUrl(sizingStorageId as any);
+    if (!backgroundUrl || !sizingUrl) {
+      console.error("[AI Hero] Could not get URLs for reference images");
+      return;
+    }
+
+    // 3. Fetch all images and convert to base64 data URLs
+    const [userPhotoResp, bgResp, sizingResp] = await Promise.all([
+      fetch(userPhotoUrl),
+      fetch(backgroundUrl),
+      fetch(sizingUrl),
+    ]);
+
+    const toBase64DataUrl = async (resp: Response) => {
+      const buffer = Buffer.from(await resp.arrayBuffer());
+      return `data:image/png;base64,${buffer.toString("base64")}`;
+    };
+
+    const userPhotoB64 = await toBase64DataUrl(userPhotoResp);
+    const bgB64 = await toBase64DataUrl(bgResp);
+    const sizingB64 = await toBase64DataUrl(sizingResp);
+
+    console.log("[AI Hero] Generating hero image via responses API...");
+
+    try {
+      // 4. Use the responses API with image generation — handles multi-image input
+      const response: any = await (openai.responses as any).create({
+        model: "gpt-4o",
+        input: [
+          {
+            role: "user",
+            content: [
+              { type: "input_image", image_url: userPhotoB64 },
+              { type: "input_image", image_url: bgB64 },
+              { type: "input_image", image_url: sizingB64 },
+              {
+                type: "input_text",
+                text: "Put the side view of the bike from the first image into the background of the second image. Do not change the aspect ratio of the second image. IMPORTANT: The bike must be SMALLER than in the third image — scale it to about 70% of the width of the background image, centered horizontally, so there is clearly visible empty space on BOTH the left and right sides of the bike. Both wheels must be fully visible with padding on each side. The bike should sit naturally on the ground surface. The result should look cinematic and professional, like a motorcycle showcase photo in a dark underground garage.",
+              },
+            ],
+          },
+        ],
+        tools: [{ type: "image_generation", size: "1536x1024" }],
+      });
+
+      // Find the generated image in the output
+      const imageOutput = response.output.find(
+        (item: any) => item.type === "image_generation_call"
+      );
+
+      if (!imageOutput || !(imageOutput as any).result) {
+        console.error("[AI Hero] No image data in response");
+        return;
+      }
+
+      // 5. Convert base64 to buffer and upload to Convex storage
+      const imageBuffer = Buffer.from((imageOutput as any).result, "base64");
+      const blob = new Blob([imageBuffer], { type: "image/png" });
+      const storageId = await ctx.storage.store(blob);
+      const heroUrl = await ctx.storage.getUrl(storageId);
+
+      if (!heroUrl) {
+        console.error("[AI Hero] Could not get URL for generated image");
+        return;
+      }
+
+      // 6. Update the bike's heroImageUrl
+      await ctx.runMutation(internal.bikes.setHeroImage, {
+        bikeId,
+        heroImageUrl: heroUrl,
+      });
+
+      console.log("[AI Hero] Hero image generated and saved successfully");
+    } catch (error: any) {
+      console.error("[AI Hero] Image generation failed:", error?.message || error);
+    }
   },
 });

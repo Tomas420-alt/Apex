@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
@@ -7,13 +7,16 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { ProgressBar } from './ProgressBar';
 import { colors } from '@/constants/theme';
 
-const TOTAL_STEPS = 16;
+const TOTAL_STEPS = 20;
 
 interface OnboardingScreenProps {
   step?: number;
   title: string;
   subtitle?: string;
+  heroNumber?: string;
+  heroNumberColor?: string;
   children: React.ReactNode;
+  footer?: React.ReactNode;
   showProgress?: boolean;
   keyboardAvoiding?: boolean;
   showBack?: boolean;
@@ -23,7 +26,10 @@ export function OnboardingScreen({
   step,
   title,
   subtitle,
+  heroNumber,
+  heroNumberColor = colors.green,
   children,
+  footer,
   showProgress = true,
   keyboardAvoiding = false,
   showBack = true,
@@ -53,10 +59,20 @@ export function OnboardingScreen({
         <ProgressBar step={step} totalSteps={TOTAL_STEPS} />
       )}
 
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentInner}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
         <Animated.View entering={FadeInUp.duration(400).delay(100)}>
-          <Text style={styles.title}>{title}</Text>
-          {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+          {heroNumber ? (
+            <Text style={[styles.heroNumber, { color: heroNumberColor }]}>
+              {heroNumber}
+            </Text>
+          ) : null}
+          {title ? <Text style={styles.title}>{title}</Text> : null}
+          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         </Animated.View>
 
         <Animated.View
@@ -65,7 +81,13 @@ export function OnboardingScreen({
         >
           {children}
         </Animated.View>
-      </View>
+
+        {footer ? (
+          <Animated.View entering={FadeInUp.duration(400).delay(300)}>
+            {footer}
+          </Animated.View>
+        ) : null}
+      </ScrollView>
     </SafeAreaView>
   );
 
@@ -113,14 +135,26 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  contentInner: {
     paddingHorizontal: 24,
     paddingTop: 16,
+    paddingBottom: 24,
+    flexGrow: 1,
+  },
+  heroNumber: {
+    fontSize: 56,
+    fontWeight: '800',
+    letterSpacing: -2,
+    lineHeight: 64,
+    marginBottom: 8,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '700',
     color: colors.textPrimary,
-    lineHeight: 36,
+    lineHeight: 40,
+    letterSpacing: -0.5,
     marginBottom: 8,
   },
   subtitle: {

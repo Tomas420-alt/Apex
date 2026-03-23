@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
 import { HealthScoreRing } from '@/components/onboarding/HealthScoreRing';
+import { CTAButton } from '@/components/onboarding/CTAButton';
 import { colors } from '@/constants/theme';
 
 export default function HealthScoreScreen() {
@@ -58,13 +59,11 @@ export default function HealthScoreScreen() {
 
       <View style={styles.bottomSpacer} />
 
-      <TouchableOpacity
-        style={styles.button}
-        activeOpacity={0.8}
+      <CTAButton
+        label="See your potential"
         onPress={() => router.push('/onboarding/potential')}
-      >
-        <Text style={styles.buttonText}>See your potential</Text>
-      </TouchableOpacity>
+        arrow
+      />
     </OnboardingScreen>
   );
 }
@@ -107,17 +106,5 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     flex: 1,
-  },
-  button: {
-    backgroundColor: colors.green,
-    borderRadius: 16,
-    paddingVertical: 18,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '700',
   },
 });

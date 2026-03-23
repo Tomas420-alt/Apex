@@ -83,6 +83,12 @@ export const completeInspection = mutation({
     if (!bike) throw new Error("Bike not found");
     if (bike.userId !== userId) throw new Error("Unauthorized");
 
+    // Gate behind paid subscription
+    const user = await ctx.db.get(userId);
+    if (user?.subscriptionStatus !== "active") {
+      throw new Error("Active subscription required");
+    }
+
     // Get all inspection items with responses
     const items = await ctx.db
       .query("inspectionItems")
@@ -115,10 +121,7 @@ export const completeInspection = mutation({
     // Mark inspection as complete
     await ctx.db.patch(bikeId, { inspectionStatus: "complete" });
 
-    // Look up user's country
-    const user = await ctx.db.get(userId);
-
-    // Generate the plan
+    // Generate the plan (user already fetched above for subscription check)
     await ctx.scheduler.runAfter(0, internal.ai.generateMaintenancePlan, {
       bikeId,
       userId,
@@ -204,6 +207,12 @@ export const startInspection = mutation({
     const bike = await ctx.db.get(bikeId);
     if (!bike) throw new Error("Bike not found");
     if (bike.userId !== userId) throw new Error("Unauthorized");
+
+    // Gate behind paid subscription
+    const user = await ctx.db.get(userId);
+    if (user?.subscriptionStatus !== "active") {
+      throw new Error("Active subscription required");
+    }
 
     // Delete any existing inspection items (in case of retry after error)
     const existing = await ctx.db

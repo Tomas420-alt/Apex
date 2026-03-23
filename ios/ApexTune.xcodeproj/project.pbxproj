@@ -8,25 +8,25 @@
 
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
-		2AC21FFAA8D5D5F8449AAEC2 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 15DE9A37DB3005FD97E7AD7F /* PrivacyInfo.xcprivacy */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		76160C9B6A9BEB67054D7FBB /* libPods-ApexTune.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A2D7BC28506791B1B74C3B12 /* libPods-ApexTune.a */; };
+		4ED81955FE88ECFA3CAC093B /* libPods-ApexTune.a in Frameworks */ = {isa = PBXBuildFile; fileRef = EC709CE2D9FF63E4CEEC6ACD /* libPods-ApexTune.a */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
+		DEC81D8C201A2C26268BA4ED /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DC225E3B6EAB171B7F8A60D /* ExpoModulesProvider.swift */; };
+		E047EB674B38FD60A9BCD862 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = BD4F50FC7CEB2741EABFF100 /* PrivacyInfo.xcprivacy */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
-		FD0EDE4EE3EFC2E5E2E04BD5 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08D4BBD2D978C5FFF15B7782 /* ExpoModulesProvider.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		08D4BBD2D978C5FFF15B7782 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-ApexTune/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* ApexTune.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ApexTune.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = ApexTune/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = ApexTune/Info.plist; sourceTree = "<group>"; };
-		15DE9A37DB3005FD97E7AD7F /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = ApexTune/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		97D78A567CA3F07FA7A6FFF0 /* Pods-ApexTune.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ApexTune.release.xcconfig"; path = "Target Support Files/Pods-ApexTune/Pods-ApexTune.release.xcconfig"; sourceTree = "<group>"; };
-		A2D7BC28506791B1B74C3B12 /* libPods-ApexTune.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-ApexTune.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		49C54D3C575047C75B9354C7 /* Pods-ApexTune.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ApexTune.debug.xcconfig"; path = "Target Support Files/Pods-ApexTune/Pods-ApexTune.debug.xcconfig"; sourceTree = "<group>"; };
+		9DC225E3B6EAB171B7F8A60D /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-ApexTune/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = ApexTune/SplashScreen.storyboard; sourceTree = "<group>"; };
-		B41D94C73086051A913746D8 /* Pods-ApexTune.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ApexTune.debug.xcconfig"; path = "Target Support Files/Pods-ApexTune/Pods-ApexTune.debug.xcconfig"; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
+		BD1328A8C867C1332348C74E /* Pods-ApexTune.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ApexTune.release.xcconfig"; path = "Target Support Files/Pods-ApexTune/Pods-ApexTune.release.xcconfig"; sourceTree = "<group>"; };
+		BD4F50FC7CEB2741EABFF100 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = ApexTune/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		EC709CE2D9FF63E4CEEC6ACD /* libPods-ApexTune.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-ApexTune.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = ApexTune/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* ApexTune-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "ApexTune-Bridging-Header.h"; path = "ApexTune/ApexTune-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -37,7 +37,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				76160C9B6A9BEB67054D7FBB /* libPods-ApexTune.a in Frameworks */,
+				4ED81955FE88ECFA3CAC093B /* libPods-ApexTune.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -53,7 +53,7 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				15DE9A37DB3005FD97E7AD7F /* PrivacyInfo.xcprivacy */,
+				BD4F50FC7CEB2741EABFF100 /* PrivacyInfo.xcprivacy */,
 			);
 			name = ApexTune;
 			sourceTree = "<group>";
@@ -62,17 +62,18 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				A2D7BC28506791B1B74C3B12 /* libPods-ApexTune.a */,
+				EC709CE2D9FF63E4CEEC6ACD /* libPods-ApexTune.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		2FCF1812C5DDAC3AC4FE1E8D /* ExpoModulesProviders */ = {
+		49DA89C8C35CFC4E1275142A /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				C0A6CD335E41CDCF088240F4 /* ApexTune */,
+				49C54D3C575047C75B9354C7 /* Pods-ApexTune.debug.xcconfig */,
+				BD1328A8C867C1332348C74E /* Pods-ApexTune.release.xcconfig */,
 			);
-			name = ExpoModulesProviders;
+			path = Pods;
 			sourceTree = "<group>";
 		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
@@ -89,8 +90,8 @@
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
-				EBA32F306BE9FC8A0CB3F961 /* Pods */,
-				2FCF1812C5DDAC3AC4FE1E8D /* ExpoModulesProviders */,
+				49DA89C8C35CFC4E1275142A /* Pods */,
+				F8E8613E60DC627588EF66D4 /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -114,22 +115,20 @@
 			path = ApexTune/Supporting;
 			sourceTree = "<group>";
 		};
-		C0A6CD335E41CDCF088240F4 /* ApexTune */ = {
+		CD66290C3511F40A6A7BE27C /* ApexTune */ = {
 			isa = PBXGroup;
 			children = (
-				08D4BBD2D978C5FFF15B7782 /* ExpoModulesProvider.swift */,
+				9DC225E3B6EAB171B7F8A60D /* ExpoModulesProvider.swift */,
 			);
 			name = ApexTune;
 			sourceTree = "<group>";
 		};
-		EBA32F306BE9FC8A0CB3F961 /* Pods */ = {
+		F8E8613E60DC627588EF66D4 /* ExpoModulesProviders */ = {
 			isa = PBXGroup;
 			children = (
-				B41D94C73086051A913746D8 /* Pods-ApexTune.debug.xcconfig */,
-				97D78A567CA3F07FA7A6FFF0 /* Pods-ApexTune.release.xcconfig */,
+				CD66290C3511F40A6A7BE27C /* ApexTune */,
 			);
-			name = Pods;
-			path = Pods;
+			name = ExpoModulesProviders;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -140,13 +139,13 @@
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "ApexTune" */;
 			buildPhases = (
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
-				19F54AC8EF73C339EEE0E43F /* [Expo] Configure project */,
+				677DCE4FDFF99705D9330BDE /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
-				91BC09BF1DB2C0A7B72801C8 /* [CP] Embed Pods Frameworks */,
+				CA5C8DFB5303E5297F478A39 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -196,7 +195,7 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				2AC21FFAA8D5D5F8449AAEC2 /* PrivacyInfo.xcprivacy in Resources */,
+				E047EB674B38FD60A9BCD862 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -242,7 +241,7 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		19F54AC8EF73C339EEE0E43F /* [Expo] Configure project */ = {
+		677DCE4FDFF99705D9330BDE /* [Expo] Configure project */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -280,10 +279,13 @@
 				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoDevice/ExpoDevice_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoFileSystem/ExpoFileSystem_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoLocalization/ExpoLocalization_privacy.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoMediaLibrary/ExpoMediaLibrary_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoSystemUI/ExpoSystemUI_privacy.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/PurchasesHybridCommon/PurchasesHybridCommon.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RNSVG/RNSVGFilters.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React-Core_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/React-cxxreact/React-cxxreact_privacy.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/RevenueCat/RevenueCat.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/expo-dev-launcher/EXDevLauncher.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/expo-dev-menu/EXDevMenu.bundle",
 			);
@@ -296,10 +298,13 @@
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoDevice_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoFileSystem_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoLocalization_privacy.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoMediaLibrary_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoSystemUI_privacy.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/PurchasesHybridCommon.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNSVGFilters.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-Core_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-cxxreact_privacy.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RevenueCat.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXDevLauncher.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXDevMenu.bundle",
 			);
@@ -308,7 +313,7 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-ApexTune/Pods-ApexTune-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		91BC09BF1DB2C0A7B72801C8 /* [CP] Embed Pods Frameworks */ = {
+		CA5C8DFB5303E5297F478A39 /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -338,7 +343,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				FD0EDE4EE3EFC2E5E2E04BD5 /* ExpoModulesProvider.swift in Sources */,
+				DEC81D8C201A2C26268BA4ED /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -347,12 +352,13 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = B41D94C73086051A913746D8 /* Pods-ApexTune.debug.xcconfig */;
+			baseConfigurationReference = 49C54D3C575047C75B9354C7 /* Pods-ApexTune.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = ApexTune/ApexTune.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SX3285JNTV;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
@@ -383,12 +389,13 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 97D78A567CA3F07FA7A6FFF0 /* Pods-ApexTune.release.xcconfig */;
+			baseConfigurationReference = BD1328A8C867C1332348C74E /* Pods-ApexTune.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = ApexTune/ApexTune.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SX3285JNTV;
 				INFOPLIST_FILE = ApexTune/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (

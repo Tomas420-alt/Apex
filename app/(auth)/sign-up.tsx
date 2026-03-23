@@ -59,8 +59,15 @@ export default function SignUpScreen() {
       }
     } catch (err: any) {
       console.error("Sign up error:", err);
-      const message =
-        err?.message || "Sign up failed. Please try again.";
+      const raw = err?.message?.toLowerCase() ?? "";
+      let message = "Sign up failed. Please try again.";
+      if (raw.includes("already") || raw.includes("exists") || raw.includes("duplicate")) {
+        message = "An account with this email already exists. Try signing in instead.";
+      } else if (raw.includes("password") && (raw.includes("weak") || raw.includes("short") || raw.includes("length"))) {
+        message = "Password is too weak. Please use at least 8 characters.";
+      } else if (raw.includes("network") || raw.includes("connect")) {
+        message = "Unable to connect. Please check your internet connection.";
+      }
       setErrorMessage(message);
       if (process.env.EXPO_OS === "ios") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

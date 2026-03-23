@@ -26,18 +26,22 @@ export default function TabLayout() {
   }
 
   return (
-    <NativeTabs minimizeBehavior="onScrollDown" tintColor="#00E599">
+    <NativeTabs minimizeBehavior="onScrollDown" tintColor="#00E599" backgroundColor="rgba(13,13,18,0.75)" blurEffect="systemUltraThinMaterialDark">
       <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: 'bicycle', selected: 'bicycle' }} />
-        <Label>Garage</Label>
+        <Icon sf={{ default: 'house', selected: 'house.fill' }} />
+        <Label>Home</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="maintenance">
-        <Icon sf={{ default: 'wrench', selected: 'wrench.fill' }} />
-        <Label>Maintenance</Label>
+      <NativeTabs.Trigger name="calendar">
+        <Icon sf={{ default: 'calendar', selected: 'calendar' }} />
+        <Label>Calendar</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="settings">
-        <Icon sf={{ default: 'gear', selected: 'gear' }} />
-        <Label>Settings</Label>
+      <NativeTabs.Trigger name="plan">
+        <Icon sf={{ default: 'doc.text', selected: 'doc.text.fill' }} />
+        <Label>Plan</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="pilot">
+        <Icon sf={{ default: 'person', selected: 'person.fill' }} />
+        <Label>Pilot</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );

@@ -17,6 +17,7 @@ import {
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { Id } from '../convex/_generated/dataModel';
+import { router } from 'expo-router';
 import { GenerateButton } from './GenerateButton';
 import { colors } from '@/constants/theme';
 
@@ -35,6 +36,7 @@ interface InspectionItem {
 interface Props {
   bikeId: Id<'bikes'>;
   inspectionStatus: string | undefined;
+  isSubscribed?: boolean;
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -46,7 +48,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   general: colors.textSecondary,
 };
 
-export function InspectionChecklist({ bikeId, inspectionStatus }: Props) {
+export function InspectionChecklist({ bikeId, inspectionStatus, isSubscribed }: Props) {
   const items = useQuery(api.inspectionMutations.listByBike, { bikeId }) as InspectionItem[] | undefined;
   const saveResponse = useMutation(api.inspectionMutations.saveResponse);
   const completeInspection = useMutation(api.inspectionMutations.completeInspection);
@@ -74,6 +76,10 @@ export function InspectionChecklist({ bikeId, inspectionStatus }: Props) {
           label={inspectionStatus === 'error' ? 'Retry Inspection' : 'Start Inspection'}
           loadingLabel="Generating Checklist"
           onPress={async () => {
+            if (!isSubscribed) {
+              router.push('/membership' as any);
+              return;
+            }
             setIsStarting(true);
             try {
               await startInspection({ bikeId });
@@ -125,6 +131,10 @@ export function InspectionChecklist({ bikeId, inspectionStatus }: Props) {
           label="Retry Inspection"
           loadingLabel="Generating Checklist"
           onPress={async () => {
+            if (!isSubscribed) {
+              router.push('/membership' as any);
+              return;
+            }
             setIsStarting(true);
             try {
               await startInspection({ bikeId });
@@ -152,6 +162,10 @@ export function InspectionChecklist({ bikeId, inspectionStatus }: Props) {
   };
 
   const handleComplete = async () => {
+    if (!isSubscribed) {
+      router.push('/membership' as any);
+      return;
+    }
     setIsCompleting(true);
     try {
       // Flush any unsaved local values to DB before completing
@@ -355,10 +369,10 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   emptyContainer: {
-    backgroundColor: colors.surface1,
+    backgroundColor: 'rgba(26,26,46,0.4)',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255,255,255,0.06)',
     padding: 24,
     alignItems: 'center',
     gap: 12,
@@ -385,10 +399,10 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   itemCard: {
-    backgroundColor: colors.surface1,
+    backgroundColor: 'rgba(26,26,46,0.4)',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255,255,255,0.06)',
     overflow: 'hidden',
   },
   itemHeader: {

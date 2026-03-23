@@ -16,6 +16,10 @@ export default defineSchema({
     // Custom app fields
     hasCompletedOnboarding: v.optional(v.boolean()),
     country: v.optional(v.string()),
+    // Subscription
+    subscriptionStatus: v.optional(v.string()), // "active" | "expired" | "cancelled" | undefined (free)
+    subscriptionPlan: v.optional(v.string()), // "monthly" | "annual"
+    subscriptionExpiresAt: v.optional(v.number()), // timestamp
     notificationPreferences: v.optional(
       v.object({
         push: v.boolean(),
@@ -32,6 +36,7 @@ export default defineSchema({
     year: v.number(),
     mileage: v.number(),
     imageUrl: v.optional(v.string()),
+    heroImageUrl: v.optional(v.string()),
     lastServiceDate: v.optional(v.string()),
     lastServiceMileage: v.optional(v.number()),
     notes: v.optional(v.string()),
@@ -71,7 +76,7 @@ export default defineSchema({
     .index("by_user", ["userId"]),
 
   maintenanceTasks: defineTable({
-    planId: v.id("maintenancePlans"),
+    planId: v.optional(v.id("maintenancePlans")),
     bikeId: v.id("bikes"),
     userId: v.string(),
     name: v.string(),
@@ -105,6 +110,19 @@ export default defineSchema({
     isAlternative: v.optional(v.boolean()),
   })
     .index("by_task", ["taskId"])
+    .index("by_bike", ["bikeId"])
+    .index("by_user", ["userId"]),
+
+  completionHistory: defineTable({
+    taskId: v.id("maintenanceTasks"),
+    bikeId: v.id("bikes"),
+    userId: v.string(),
+    taskName: v.string(),
+    completedAt: v.number(),
+    dueDate: v.optional(v.string()),
+    estimatedLaborCostUsd: v.optional(v.number()),
+    estimatedCostUsd: v.optional(v.number()),
+  })
     .index("by_bike", ["bikeId"])
     .index("by_user", ["userId"]),
 

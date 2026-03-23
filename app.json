@@ -12,7 +12,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.jigglytom.apextune",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "Apex needs access to your photo library to save maintenance history images and inspection photos."
       }
     },
     "android": {

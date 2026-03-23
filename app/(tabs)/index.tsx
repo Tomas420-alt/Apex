@@ -1,22 +1,34 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   ScrollView,
+  FlatList,
   StyleSheet,
   StatusBar,
   TouchableOpacity,
   Pressable,
   Modal,
+  ActivityIndicator,
+  useWindowDimensions,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
-import { Bike, ChevronRight, Plus, Trash2, Wrench } from 'lucide-react-native';
+import { Bike, Plus } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { colors } from '@/constants/theme';
-import { MaintenanceCalendar } from '../../components/MaintenanceCalendar';
+import { MotorcycleHero } from '../../components/home/MotorcycleHero';
+import { SummaryCards, MetricTab } from '../../components/maintenance/SummaryCards';
+import { TaskCard } from '../../components/maintenance/TaskCard';
+import { CompletedSection } from '../../components/maintenance/CompletedSection';
+import { SavingsBreakdown } from '../../components/home/SavingsBreakdown';
+import { EmptyUpcoming, EmptyOverdue, EmptyCompleted, EmptyGeneral } from '../../components/home/EmptyStates';
+import { getCurrencySymbol, getCurrencyIconName } from '../../utils/currency';
 
 interface BikeDoc {
   _id: Id<'bikes'>;
@@ -24,53 +36,8 @@ interface BikeDoc {
   model: string;
   year: number;
   mileage?: number;
-  nextService?: string;
-}
-
-interface BikeCardProps {
-  bike: BikeDoc;
-  onPress: () => void;
-  onDelete: () => void;
-}
-
-function BikeCard({ bike, onPress, onDelete }: BikeCardProps) {
-  return (
-    <View style={styles.card}>
-      <TouchableOpacity style={styles.cardTouchArea} onPress={onPress} activeOpacity={0.7}>
-        <View style={styles.cardIconContainer}>
-          <Bike size={22} color={colors.green} />
-        </View>
-        <View style={styles.cardContent}>
-          <Text style={styles.bikeName}>
-            {bike.make} {bike.model}
-          </Text>
-          <Text style={styles.bikeMeta}>
-            {bike.year}
-            {bike.mileage !== undefined ? ` • ${bike.mileage.toLocaleString()} km` : ''}
-          </Text>
-          {bike.nextService ? (
-            <View style={styles.serviceBadge}>
-              <Wrench size={11} color={colors.green} style={styles.serviceBadgeIcon} />
-              <Text style={styles.serviceBadgeText}>Next: {bike.nextService}</Text>
-            </View>
-          ) : null}
-        </View>
-        <ChevronRight size={20} color={colors.textTertiary} />
-      </TouchableOpacity>
-      <Pressable
-        style={({ pressed }) => [
-          styles.deleteButton,
-          pressed && { opacity: 0.5, backgroundColor: 'rgba(255,107,107,0.2)' },
-        ]}
-        onPress={() => {
-          onDelete();
-        }}
-        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-      >
-        <Trash2 size={16} color={colors.red} />
-      </Pressable>
-    </View>
-  );
+  imageUrl?: string;
+  heroImageUrl?: string;
 }
 
 function EmptyGarage({ onAdd }: { onAdd: () => void }) {
@@ -91,31 +58,92 @@ function EmptyGarage({ onAdd }: { onAdd: () => void }) {
   );
 }
 
-export default function GarageScreen() {
+export default function HomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+
+  // Bike data
   const bikes = (useQuery(api.bikes.list) ?? []) as BikeDoc[];
-  const removeBike = useMutation(api.bikes.remove);
-  const [bikeToDelete, setBikeToDelete] = useState<BikeDoc | null>(null);
-  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
+  const currentUser = useQuery(api.users.getCurrent);
+  const updateSubscription = useMutation(api.users.updateSubscription);
+  const generateUploadUrl = useMutation(api.imageEdits.generateUploadUrl);
+  const updateBikeImageFromStorage = useMutation(api.bikes.updateBikeImageFromStorage);
 
-  // Always start from the 1st of the current real month
-  const calendarStartDate = useMemo(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-  }, []);
+  // Maintenance data (from old maintenance.tsx)
+  const tasks = useQuery(api.maintenanceTasks.listDue);
+  const recentlyCompleted = useQuery(api.maintenanceTasks.listRecentlyCompleted);
+  const completedCount = useQuery(api.maintenanceTasks.countCompleted);
+  const savings = useQuery(api.maintenanceTasks.totalSavings);
+  const completeMutation = useMutation(api.maintenanceTasks.completeAndAdvance);
+  const cleanupOrphaned = useMutation(api.maintenanceTasks.cleanupOrphaned);
+  const yearlyStatsAll = useQuery(api.maintenanceTasks.yearlyStats, {});
 
-  // End date = 2 months ahead of whichever month the user is currently viewing
-  const calendarEndDate = useMemo(() => {
-    const y = calendarMonth.getFullYear();
-    const m = calendarMonth.getMonth();
-    const endMonth = new Date(y, m + 3, 0); // last day of viewed month + 2
-    return `${endMonth.getFullYear()}-${String(endMonth.getMonth() + 1).padStart(2, '0')}-${String(endMonth.getDate()).padStart(2, '0')}`;
-  }, [calendarMonth]);
+  const currency = getCurrencySymbol(currentUser?.country);
+  const currencyIconName = getCurrencyIconName(currentUser?.country);
 
-  const calendarTasks = useQuery(
-    api.maintenanceTasks.listForCalendar,
-    bikes.length > 0 ? { startDate: calendarStartDate, endDate: calendarEndDate } : 'skip'
+  // Cleanup orphaned tasks once on mount
+  const hasCleanedUp = useRef(false);
+  useEffect(() => {
+    if (!hasCleanedUp.current && currentUser) {
+      hasCleanedUp.current = true;
+      cleanupOrphaned().catch(console.error);
+    }
+  }, [currentUser, cleanupOrphaned]);
+
+  // Handle adding a photo to a bike from the hero placeholder
+  const handleAddBikePhoto = async (bikeId: Id<'bikes'>) => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [16, 10],
+    });
+    if (result.canceled || !result.assets[0]) return;
+
+    try {
+      const uploadUrl = await generateUploadUrl();
+      const response = await fetch(result.assets[0].uri);
+      const blob = await response.blob();
+      const uploadResult = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': blob.type || 'image/jpeg' },
+        body: blob,
+      });
+      const { storageId } = await uploadResult.json();
+      await updateBikeImageFromStorage({ bikeId, storageId });
+    } catch (error) {
+      console.error('Failed to upload image:', error);
+    }
+  };
+
+  // Reverse bikes so first added = first in list (API returns desc)
+  const bikesOrdered = useMemo(() => [...bikes].reverse(), [bikes]);
+
+  // State
+  const [activeBikeIndex, setActiveBikeIndex] = useState(0);
+  const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
+  const [taskToComplete, setTaskToComplete] = useState<{ id: Id<'maintenanceTasks'>; name: string } | null>(null);
+  const [activeMetricTab, setActiveMetricTab] = useState<MetricTab>('upcoming');
+
+  const activeBike = bikesOrdered[activeBikeIndex] ?? bikesOrdered[0] ?? null;
+  const selectedBikeId = activeBike?._id ?? null;
+
+  const yearlyStatsBike = useQuery(
+    api.maintenanceTasks.yearlyStats,
+    selectedBikeId ? { bikeId: selectedBikeId } : 'skip'
   );
+  const yearlyStats = bikes.length > 1 ? yearlyStatsBike : yearlyStatsAll;
+
+  const heroFlatListRef = useRef<FlatList>(null);
+  const { width: screenWidth } = useWindowDimensions();
+
+  const onHeroScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetX = e.nativeEvent.contentOffset.x;
+    const index = Math.round(offsetX / screenWidth);
+    if (index >= 0 && index < bikesOrdered.length) {
+      setActiveBikeIndex(index);
+    }
+  }, [screenWidth, bikesOrdered.length]);
 
   const bikeNameMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -125,374 +153,381 @@ export default function GarageScreen() {
     return map;
   }, [bikes]);
 
-  const handleBikePress = (id: Id<'bikes'>) => {
-    router.push(`/bike/${id}` as any);
-  };
+  const isLoading = tasks === undefined || bikes.length === undefined;
+  const overdueTasks = tasks?.filter((t) => t.status === 'overdue') ?? [];
+  const dueTasks = tasks?.filter((t) => t.status === 'due') ?? [];
+  const allTasks = [...overdueTasks, ...dueTasks].sort((a, b) => {
+    const aMileage = a.dueMileage ?? Infinity;
+    const bMileage = b.dueMileage ?? Infinity;
+    if (aMileage !== bMileage) return aMileage - bMileage;
+    return (a.dueDate ?? '').localeCompare(b.dueDate ?? '');
+  });
 
-  const handleAddBike = () => {
-    router.push('/add-bike' as any);
-  };
+  const filteredOverdue = selectedBikeId ? overdueTasks.filter((t) => t.bikeId === selectedBikeId) : overdueTasks;
+  const filteredAllTasks = selectedBikeId ? allTasks.filter((t) => t.bikeId === selectedBikeId) : allTasks;
+  const filteredTasks = selectedBikeId ? allTasks.filter((t) => t.bikeId === selectedBikeId) : allTasks;
+  const filteredCompleted = selectedBikeId
+    ? (recentlyCompleted ?? []).filter((t) => t.bikeId === selectedBikeId)
+    : (recentlyCompleted ?? []);
+  const filteredCompletedCount = yearlyStats?.completedThisYear ?? 0;
+  const filteredSavings = yearlyStats?.savedThisYear ?? 0;
 
-  const confirmDelete = async () => {
-    if (!bikeToDelete) return;
+  const heroHeight = screenWidth * 1.15;
+
+  const handleConfirmComplete = async () => {
+    if (!taskToComplete) return;
+    const { id } = taskToComplete;
+    setTaskToComplete(null);
+    setCompletingIds((prev) => new Set(prev).add(id));
     try {
-      await removeBike({ id: bikeToDelete._id });
-    } catch (error) {
-      console.error('Failed to delete bike:', error);
+      await completeMutation({ id });
+    } catch (e) {
+      console.error('Failed to complete task:', e);
+    } finally {
+      setCompletingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }
-    setBikeToDelete(null);
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
-
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <View style={styles.headerLogo}>
-            <Wrench size={22} color={colors.accent} />
-          </View>
-          <View>
-            <Text style={styles.title}>My Garage</Text>
-            <Text style={styles.subtitle}>
-              {bikes.length === 0
-                ? 'No bikes added yet'
-                : bikes.length === 1
-                ? '1 bike'
-                : `${bikes.length} bikes`}
-            </Text>
-          </View>
-        </View>
-      </View>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {bikes.length === 0 ? (
-        <EmptyGarage onAdd={handleAddBike} />
+        <SafeAreaView style={{ flex: 1 }}>
+          <Text style={styles.screenTitle}>Garage</Text>
+          <EmptyGarage onAdd={() => router.push('/add-bike' as any)} />
+        </SafeAreaView>
       ) : (
         <ScrollView
-          style={styles.listContainer}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: 0 }]}
           showsVerticalScrollIndicator={false}
         >
-          {bikes.map((bike) => (
-            <BikeCard
-              key={bike._id}
-              bike={bike}
-              onPress={() => handleBikePress(bike._id)}
-              onDelete={() => setBikeToDelete(bike)}
+          {/* Swipeable Hero — swipe left/right to switch bikes */}
+          <View style={styles.heroWrapper}>
+            <FlatList
+              ref={heroFlatListRef}
+              data={bikesOrdered}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onScroll={onHeroScroll}
+              scrollEventThrottle={16}
+              getItemLayout={(_, index) => ({ length: screenWidth, offset: screenWidth * index, index })}
+              keyExtractor={(item) => item._id}
+              renderItem={({ item }) => (
+                <View style={{ width: screenWidth }}>
+                  <MotorcycleHero
+                    imageUrl={item.imageUrl}
+                    heroImageUrl={item.heroImageUrl}
+                    bikeName={`${item.year} ${item.make} ${item.model}`}
+                    mileage={item.mileage ?? 0}
+                    onAddPhoto={() => handleAddBikePhoto(item._id)}
+                  />
+                </View>
+              )}
             />
-          ))}
+            {/* Garage title + page dots overlaying the hero */}
+            <Text style={[styles.heroTitle, { top: insets.top + 8 }]}>Garage</Text>
+            {bikesOrdered.length > 1 && (
+              <View style={[styles.pageDots, { top: insets.top + 30 }]}>
+                {bikesOrdered.map((_, i) => (
+                  <View key={i} style={[styles.pageDot, i === activeBikeIndex && styles.pageDotActive]} />
+                ))}
+              </View>
+            )}
+          </View>
 
-          {/* Maintenance Calendar */}
-          <MaintenanceCalendar
-            tasks={calendarTasks}
-            bikeNameMap={bikeNameMap}
-            currentMonth={calendarMonth}
-            onMonthChange={setCalendarMonth}
-            onTaskPress={(bikeId, taskId) => router.push(`/bike/${bikeId}?taskId=${taskId}` as any)}
-          />
+          {/* ── Maintenance Dashboard ── */}
+          <View style={styles.dashboardContent}>
+            {/* Summary Cards — filtered by active bike */}
+            {!isLoading && (
+              <SummaryCards
+                overdueCount={filteredOverdue.length}
+                dueCount={filteredAllTasks.length}
+                completedCount={filteredCompletedCount}
+                totalSavings={filteredSavings}
+                currency={currency}
+                currencyIconName={currencyIconName}
+                completedProgress={yearlyStats ? (yearlyStats.totalThisYear > 0 ? yearlyStats.completedThisYear / yearlyStats.totalThisYear : 0) : undefined}
+                savingsProgress={yearlyStats ? (yearlyStats.projectedSavings > 0 ? yearlyStats.savedThisYear / yearlyStats.projectedSavings : 0) : undefined}
+                activeTab={activeMetricTab}
+                onTabPress={setActiveMetricTab}
+              />
+            )}
+
+            {/* ── Content based on active metric tab ── */}
+
+            {/* Upcoming Tasks (default) */}
+            {activeMetricTab === 'upcoming' && (
+              <>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Upcoming Tasks</Text>
+                </View>
+                <View style={styles.taskList}>
+                  {isLoading ? (
+                    <View style={styles.loadingContainer}>
+                      <ActivityIndicator size="large" color={colors.green} />
+                    </View>
+                  ) : filteredTasks.filter((t) => t.status === 'due').length === 0 ? (
+                    <EmptyUpcoming />
+                  ) : (
+                    filteredTasks.filter((t) => t.status === 'due').map((task) => (
+                      <TaskCard
+                        key={task._id}
+                        task={task}
+                        bikeName={bikeNameMap.get(task.bikeId) ?? 'Unknown Bike'}
+                        onPress={() => router.push(`/bike/${task.bikeId}?taskId=${task._id}` as any)}
+                        onComplete={(id) => setTaskToComplete({ id, name: task.name })}
+                        isCompleting={completingIds.has(task._id)}
+                        currency={currency}
+                      />
+                    ))
+                  )}
+                </View>
+              </>
+            )}
+
+            {/* Overdue Tasks */}
+            {activeMetricTab === 'overdue' && (
+              <>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Overdue Tasks</Text>
+                </View>
+                <View style={styles.taskList}>
+                  {filteredOverdue.length === 0 ? (
+                    <EmptyOverdue />
+                  ) : (
+                    filteredOverdue.map((task) => (
+                      <TaskCard
+                        key={task._id}
+                        task={task}
+                        bikeName={bikeNameMap.get(task.bikeId) ?? 'Unknown Bike'}
+                        onPress={() => router.push(`/bike/${task.bikeId}?taskId=${task._id}` as any)}
+                        onComplete={(id) => setTaskToComplete({ id, name: task.name })}
+                        isCompleting={completingIds.has(task._id)}
+                        currency={currency}
+                      />
+                    ))
+                  )}
+                </View>
+              </>
+            )}
+
+            {/* Completed Tasks */}
+            {activeMetricTab === 'done' && (
+              <>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Completed Tasks</Text>
+                </View>
+                <View style={styles.taskList}>
+                  {filteredCompleted.length === 0 ? (
+                    <EmptyCompleted />
+                  ) : (
+                    <CompletedSection
+                      tasks={filteredCompleted.map((t) => ({
+                        _id: t._id,
+                        name: t.name,
+                        completedAt: t.completedAt,
+                        estimatedLaborCostUsd: t.estimatedLaborCostUsd,
+                        bikeName: bikeNameMap.get(t.bikeId) ?? 'Unknown Bike',
+                      }))}
+                      currency={currency}
+                    />
+                  )}
+                </View>
+              </>
+            )}
+
+            {/* Savings Breakdown */}
+            {activeMetricTab === 'saved' && (
+              <SavingsBreakdown
+                savedThisYear={yearlyStats?.savedThisYear ?? 0}
+                projectedSavings={yearlyStats?.projectedSavings ?? 0}
+                partsSpentThisYear={yearlyStats?.partsSpentThisYear ?? 0}
+                projectedPartsCost={yearlyStats?.projectedPartsCost ?? 0}
+                mechanicCostThisYear={yearlyStats?.mechanicCostThisYear ?? 0}
+                currency={currency}
+              />
+            )}
+          </View>
         </ScrollView>
       )}
 
-      {bikes.length > 0 && (
-        <TouchableOpacity style={styles.fab} onPress={handleAddBike} activeOpacity={0.85}>
-          <Plus size={24} color="#FFFFFF" />
-        </TouchableOpacity>
+      {/* TEMP: Test onboarding */}
+      {true && (
+        <>
+          <TouchableOpacity
+            style={styles.testOnboardingBtn}
+            onPress={() => router.push('/onboarding' as any)}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.testOnboardingText}>Test Onboarding</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.testOnboardingBtn, {
+              backgroundColor: currentUser?.subscriptionStatus === 'active' ? colors.green : colors.purple,
+              bottom: 145,
+            }]}
+            onPress={async () => {
+              const isActive = currentUser?.subscriptionStatus === 'active';
+              await updateSubscription({
+                subscriptionStatus: isActive ? 'free' : 'active',
+                subscriptionPlan: isActive ? undefined : 'annual',
+              });
+            }}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.testOnboardingText}>
+              {currentUser?.subscriptionStatus === 'active' ? 'Sub: PRO (tap to switch to Free)' : 'Sub: FREE (tap to switch to Pro)'}
+            </Text>
+          </TouchableOpacity>
+        </>
       )}
 
-      {/* TEMP: Test onboarding — remove after testing */}
-      <TouchableOpacity
-        style={styles.testOnboardingBtn}
-        onPress={() => router.push('/onboarding' as any)}
-        activeOpacity={0.85}
-      >
-        <Text style={styles.testOnboardingText}>Test Onboarding</Text>
-      </TouchableOpacity>
-
+      {/* Complete Confirmation Modal */}
       <Modal
-        visible={bikeToDelete !== null}
+        visible={taskToComplete !== null}
         transparent
         animationType="fade"
-        onRequestClose={() => setBikeToDelete(null)}
+        onRequestClose={() => setTaskToComplete(null)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setBikeToDelete(null)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setTaskToComplete(null)}>
           <Pressable style={styles.modalBox} onPress={() => {}}>
-            <Text style={styles.modalTitle}>Delete Bike</Text>
+            <Text style={styles.modalTitle}>Mark Complete</Text>
             <Text style={styles.modalMessage}>
-              Are you sure you want to delete{' '}
-              <Text style={{ fontWeight: '700' }}>
-                {bikeToDelete?.make} {bikeToDelete?.model}
-              </Text>
-              ?
+              Mark <Text style={{ fontWeight: '700' }}>{taskToComplete?.name}</Text> as completed?
             </Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={styles.modalCancelBtn}
-                onPress={() => setBikeToDelete(null)}
+                onPress={() => setTaskToComplete(null)}
                 activeOpacity={0.7}
               >
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.modalDeleteBtn}
-                onPress={confirmDelete}
+                style={styles.modalConfirmBtn}
+                onPress={handleConfirmComplete}
                 activeOpacity={0.7}
               >
-                <Text style={styles.modalDeleteText}>Delete</Text>
+                <Text style={styles.modalConfirmText}>Complete</Text>
               </TouchableOpacity>
             </View>
           </Pressable>
         </Pressable>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  header: {
-    backgroundColor: colors.bg,
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 20,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerLogo: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    marginRight: 12,
-    backgroundColor: colors.surface2,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-  },
-  title: {
+  container: { flex: 1, backgroundColor: colors.bg },
+  scrollContent: { paddingBottom: 120, gap: 16 },
+
+  screenTitle: {
     fontSize: 28,
     fontWeight: '700',
     color: colors.textPrimary,
+    textAlign: 'center',
+    marginTop: 12,
+    marginBottom: 4,
   },
-  subtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    fontWeight: '500',
-    marginTop: 2,
+
+  // Hero wrapper — full bleed
+  heroWrapper: {
+    position: 'relative',
+    marginBottom: -80,
   },
-  listContainer: {
-    flex: 1,
-  },
-  listContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 120,
-  },
-  card: {
-    backgroundColor: colors.surface1,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingRight: 12,
-    marginBottom: 12,
-    overflow: 'visible',
-  },
-  cardTouchArea: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-  },
-  cardIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: 'rgba(0,229,153,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  cardContent: {
-    flex: 1,
-    gap: 3,
-  },
-  bikeName: {
-    fontSize: 16,
+  heroTitle: {
+    position: 'absolute',
+    alignSelf: 'center',
+    fontSize: 15,
     fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  bikeMeta: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    fontWeight: '400',
-  },
-  serviceBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(0,229,153,0.12)',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    gap: 4,
-  },
-  deleteButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,107,107,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
+    color: 'rgba(255,255,255,0.7)',
+    letterSpacing: 6,
+    textTransform: 'uppercase',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 8,
     zIndex: 10,
   },
-  serviceBadgeIcon: {
-    marginRight: 2,
-  },
-  serviceBadgeText: {
-    fontSize: 11,
-    color: colors.green,
-    fontWeight: '600',
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 40,
-    paddingBottom: 60,
-  },
-  emptyIconWrapper: {
-    width: 88,
-    height: 88,
-    borderRadius: 24,
-    backgroundColor: colors.surface1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 10,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 32,
-  },
-  emptyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.green,
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    gap: 8,
-  },
-  emptyButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  fab: {
+
+  // Page dots for bike swiper
+  pageDots: {
     position: 'absolute',
-    bottom: 100,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.green,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.green,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: colors.overlay,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalBox: {
-    backgroundColor: colors.surface2,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 20,
-    width: '85%',
-    maxWidth: 340,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 24,
-    elevation: 12,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 8,
-  },
-  modalMessage: {
-    fontSize: 15,
-    color: colors.textSecondary,
-    lineHeight: 22,
-    marginBottom: 24,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  modalCancelBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: colors.surface1,
-    alignItems: 'center',
-  },
-  modalCancelText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  modalDeleteBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: colors.red,
-    alignItems: 'center',
-  },
-  modalDeleteText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  testOnboardingBtn: {
-    position: 'absolute',
-    bottom: 100,
     alignSelf: 'center',
-    backgroundColor: colors.blue,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
+    flexDirection: 'row',
+    gap: 6,
+    zIndex: 10,
   },
-  testOnboardingText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
+  pageDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.3)',
   },
+  pageDotActive: {
+    backgroundColor: '#FFFFFF',
+    width: 18,
+  },
+
+  // Dashboard content (padded)
+  dashboardContent: { paddingHorizontal: 16, gap: 16 },
+
+  // Section header
+  sectionHeader: { paddingBottom: 4 },
+  sectionTitle: { fontSize: 18, fontWeight: '600', color: colors.textPrimary },
+
+  // Task list
+  taskList: {},
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: 16 },
+  loadingContainer: { justifyContent: 'center', alignItems: 'center', paddingVertical: 60 },
+
+  // Empty tasks
+  emptyTasksContainer: {
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingVertical: 40,
+    backgroundColor: colors.surface1, borderRadius: 16, borderWidth: 1, borderColor: colors.border,
+  },
+  emptyTasksTitle: { fontSize: 16, fontWeight: '600', color: colors.textPrimary, marginTop: 12, marginBottom: 6 },
+  emptyTasksDescription: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 },
+
+  // Empty garage
+  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingBottom: 60 },
+  emptyIconWrapper: {
+    width: 88, height: 88, borderRadius: 24,
+    backgroundColor: colors.surface1, alignItems: 'center', justifyContent: 'center', marginBottom: 24,
+  },
+  emptyTitle: { fontSize: 20, fontWeight: '700', color: colors.textPrimary, marginBottom: 10 },
+  emptySubtitle: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 32 },
+  emptyButton: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: colors.green, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 14, gap: 8,
+  },
+  emptyButtonText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
+
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', alignItems: 'center' },
+  modalBox: {
+    backgroundColor: colors.surface2, borderRadius: 20, borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: 24, paddingTop: 24, paddingBottom: 20, width: '85%', maxWidth: 340,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 8 },
+  modalMessage: { fontSize: 15, color: colors.textSecondary, lineHeight: 22, marginBottom: 24 },
+  modalButtons: { flexDirection: 'row', gap: 12 },
+  modalCancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: colors.surface1, alignItems: 'center' },
+  modalCancelText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
+  modalConfirmBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: colors.green, alignItems: 'center' },
+  modalConfirmText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
+
+  // TEMP buttons
+  testOnboardingBtn: {
+    position: 'absolute', bottom: 100, alignSelf: 'center',
+    backgroundColor: colors.blue, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20,
+  },
+  testOnboardingText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
 });

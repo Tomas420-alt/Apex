@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { useRouter } from 'expo-router';
+import { Sun, CalendarDays, PartyPopper, Cloud, Snowflake } from 'lucide-react-native';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
 import { SelectionCard } from '@/components/onboarding/SelectionCard';
 
 const OPTIONS = [
-  { label: 'Daily', value: 'daily' },
-  { label: 'Several times per week', value: 'several-weekly' },
-  { label: 'Weekends', value: 'weekends' },
-  { label: 'Occasionally', value: 'occasional' },
-  { label: 'Seasonal', value: 'seasonal' },
+  { label: 'Daily', value: 'daily', icon: Sun },
+  { label: 'Several times per week', value: 'several-weekly', icon: CalendarDays },
+  { label: 'Weekends', value: 'weekends', icon: PartyPopper },
+  { label: 'Occasionally', value: 'occasional', icon: Cloud },
+  { label: 'Seasonal', value: 'seasonal', icon: Snowflake },
 ];
 
 export default function RidingFrequencyScreen() {
@@ -30,6 +31,7 @@ export default function RidingFrequencyScreen() {
           key={opt.value}
           label={opt.label}
           value={opt.value}
+          icon={opt.icon}
           selected={selected === opt.value}
           onPress={handleSelect}
         />

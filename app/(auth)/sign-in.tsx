@@ -51,8 +51,15 @@ export default function SignInScreen() {
       }
     } catch (err: any) {
       console.error("Sign in error:", err);
-      const message =
-        err?.message || "Sign in failed. Please check your credentials.";
+      const raw = err?.message?.toLowerCase() ?? "";
+      let message = "Sign in failed. Please check your credentials.";
+      if (raw.includes("invalid") || raw.includes("secret") || raw.includes("credentials")) {
+        message = "Incorrect email or password. Please try again.";
+      } else if (raw.includes("not found") || raw.includes("no user")) {
+        message = "No account found with this email. Please sign up first.";
+      } else if (raw.includes("network") || raw.includes("connect")) {
+        message = "Unable to connect. Please check your internet connection.";
+      }
       setErrorMessage(message);
       if (process.env.EXPO_OS === "ios") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

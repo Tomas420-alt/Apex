@@ -1,14 +1,15 @@
 import React from 'react';
 import { useRouter } from 'expo-router';
+import { Sprout, Bike, Target, Crown } from 'lucide-react-native';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
 import { SelectionCard } from '@/components/onboarding/SelectionCard';
 
 const OPTIONS = [
-  { label: 'Less than a year', value: 'beginner' },
-  { label: '1-3 years', value: 'intermediate' },
-  { label: '3-10 years', value: 'advanced' },
-  { label: '10+ years', value: 'expert' },
+  { label: 'Less than a year', value: 'beginner', icon: Sprout },
+  { label: '1-3 years', value: 'intermediate', icon: Bike },
+  { label: '3-10 years', value: 'advanced', icon: Target },
+  { label: '10+ years', value: 'expert', icon: Crown },
 ];
 
 export default function ExperienceScreen() {
@@ -27,6 +28,7 @@ export default function ExperienceScreen() {
           key={option.value}
           label={option.label}
           value={option.value}
+          icon={option.icon}
           selected={data.experienceLevel === option.value}
           onPress={handleSelect}
         />

@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
+import { CTAButton } from '@/components/onboarding/CTAButton';
 import { colors } from '@/constants/theme';
 
 export default function NameScreen() {
@@ -36,16 +38,23 @@ export default function NameScreen() {
       />
       <View style={styles.inputBorder} />
 
+      {isValid && (
+        <Animated.Text
+          entering={FadeInUp.duration(300)}
+          style={styles.greeting}
+        >
+          Nice to meet you, {name.trim()}!
+        </Animated.Text>
+      )}
+
       <View style={styles.spacer} />
 
-      <TouchableOpacity
-        style={[styles.button, !isValid && styles.buttonDisabled]}
-        activeOpacity={0.8}
+      <CTAButton
+        label="Continue"
         onPress={handleContinue}
         disabled={!isValid}
-      >
-        <Text style={styles.buttonText}>Continue</Text>
-      </TouchableOpacity>
+        arrow
+      />
     </OnboardingScreen>
   );
 }
@@ -62,22 +71,13 @@ const styles = StyleSheet.create({
     height: 1.5,
     backgroundColor: colors.border,
   },
+  greeting: {
+    fontSize: 16,
+    color: colors.green,
+    fontWeight: '600',
+    marginTop: 16,
+  },
   spacer: {
     flex: 1,
-  },
-  button: {
-    backgroundColor: colors.green,
-    borderRadius: 16,
-    paddingVertical: 18,
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  buttonDisabled: {
-    opacity: 0.4,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '700',
   },
 });

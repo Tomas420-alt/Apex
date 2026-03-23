@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { AlertTriangle, Wrench, Bike, ChevronRight, CheckCircle } from 'lucide-react-native';
 import { Id } from '../../convex/_generated/dataModel';
 import { colors } from '@/constants/theme';
@@ -43,12 +44,13 @@ export function TaskCard({ task, bikeName, onPress, onComplete, isCompleting, cu
   return (
     <Pressable
       style={({ pressed }) => [
-        styles.card,
+        styles.cardOuter,
         { borderLeftWidth: 3, borderLeftColor: iconColors.icon },
         pressed && { opacity: 0.95 },
       ]}
       onPress={onPress}
     >
+      <BlurView intensity={25} tint="dark" style={styles.card}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -93,62 +95,62 @@ export function TaskCard({ task, bikeName, onPress, onComplete, isCompleting, cu
         ) : null}
       </View>
 
-      {/* Cost breakdown */}
-      {hasCostData ? (
+      {/* Bottom row: cost + complete */}
+      <View style={styles.bottomRow}>
         <View style={styles.costRow}>
           <View style={styles.costItem}>
+            <Text style={styles.costValueGreen}>{hasCostData ? `${currency}${Math.round(partsCost)}` : '—'}</Text>
             <Text style={styles.costLabel}>DIY</Text>
-            <Text style={styles.costValueGreen}>{currency}{Math.round(partsCost)}</Text>
           </View>
-          {laborCost > 0 ? (
-            <>
-              <View style={styles.costDivider} />
-              <View style={styles.costItem}>
-                <Text style={styles.costLabel}>Shop</Text>
-                <Text style={styles.costValueGray}>{currency}{Math.round(shopCost)}</Text>
-              </View>
-              <View style={styles.costDivider} />
-              <View style={styles.costItem}>
-                <Text style={styles.costLabel}>You save</Text>
-                <Text style={styles.costValueSave}>{currency}{Math.round(laborCost)}</Text>
-              </View>
-            </>
-          ) : null}
+          <View style={styles.costDivider} />
+          <View style={styles.costItem}>
+            <Text style={styles.costValueGray}>{hasCostData && laborCost > 0 ? `${currency}${Math.round(shopCost)}` : '—'}</Text>
+            <Text style={styles.costLabel}>Shop</Text>
+          </View>
+          <View style={styles.costDivider} />
+          <View style={styles.costItem}>
+            <Text style={styles.costValueSave}>{hasCostData && laborCost > 0 ? `${currency}${Math.round(laborCost)}` : '—'}</Text>
+            <Text style={styles.costLabel}>Save</Text>
+          </View>
         </View>
-      ) : null}
-
-      {/* Complete button */}
-      <Pressable
-        style={({ pressed }) => [
-          styles.completeButton,
-          pressed && { opacity: 0.7 },
-          isCompleting && { opacity: 0.6 },
-        ]}
-        onPress={(e) => {
-          e.stopPropagation();
-          onComplete(task._id);
-        }}
-        disabled={isCompleting}
-      >
-        {isCompleting ? (
-          <ActivityIndicator size={14} color={colors.green} />
-        ) : (
-          <CheckCircle size={14} color={colors.green} strokeWidth={2} />
-        )}
-        <Text style={styles.completeButtonText}>Mark Complete</Text>
-      </Pressable>
+        <View style={styles.completeWrapper}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.completeButton,
+              pressed && { opacity: 0.7 },
+              isCompleting && { opacity: 0.6 },
+            ]}
+            onPress={(e) => {
+              e.stopPropagation();
+              onComplete(task._id);
+            }}
+            disabled={isCompleting}
+          >
+            {isCompleting ? (
+              <ActivityIndicator size={14} color={colors.green} />
+            ) : (
+              <CheckCircle size={14} color={colors.green} strokeWidth={2} />
+            )}
+            <Text style={styles.completeButtonText}>Mark Complete</Text>
+          </Pressable>
+        </View>
+      </View>
+      </BlurView>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface1,
+  cardOuter: {
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
+    borderColor: 'rgba(255,255,255,0.1)',
     marginBottom: 12,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(26,26,46,0.5)',
+  },
+  card: {
+    padding: 16,
     gap: 10,
   },
   header: {
@@ -213,49 +215,53 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
   },
-  costRow: {
+  bottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface2,
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+  },
+  costRow: {
+    width: '45%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   costItem: {
-    flex: 1,
     alignItems: 'center',
-    gap: 2,
+    gap: 1,
   },
   costDivider: {
     width: 1,
-    height: 28,
+    height: 24,
     backgroundColor: colors.border,
   },
   costLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: colors.textTertiary,
     fontWeight: '500',
   },
   costValueGreen: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: colors.green,
   },
   costValueGray: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: colors.textSecondary,
   },
   costValueSave: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: colors.green,
+  },
+  completeWrapper: {
+    flex: 1,
+    alignItems: 'flex-end',
   },
   completeButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    alignSelf: 'flex-start',
     paddingVertical: 7,
     paddingHorizontal: 12,
     borderRadius: 8,

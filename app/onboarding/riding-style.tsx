@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { useRouter } from 'expo-router';
+import { Building2, Gauge, Compass, Mountain, Shuffle } from 'lucide-react-native';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
 import { SelectionCard } from '@/components/onboarding/SelectionCard';
 
 const OPTIONS = [
-  { label: 'Commuting', value: 'commuting' },
-  { label: 'Sport / spirited', value: 'sport' },
-  { label: 'Touring', value: 'touring' },
-  { label: 'Adventure / off-road', value: 'off-road' },
-  { label: 'Mixed', value: 'mixed' },
+  { label: 'Commuting', value: 'commuting', icon: Building2 },
+  { label: 'Sport / spirited', value: 'sport', icon: Gauge },
+  { label: 'Touring', value: 'touring', icon: Compass },
+  { label: 'Adventure / off-road', value: 'off-road', icon: Mountain },
+  { label: 'Mixed', value: 'mixed', icon: Shuffle },
 ];
 
 export default function RidingStyleScreen() {
@@ -30,6 +31,7 @@ export default function RidingStyleScreen() {
           key={opt.value}
           label={opt.label}
           value={opt.value}
+          icon={opt.icon}
           selected={selected === opt.value}
           onPress={handleSelect}
         />

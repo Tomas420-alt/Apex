@@ -1,9 +1,12 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
+import { Wrench } from 'lucide-react-native';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
+import { HealthScoreRing } from '@/components/onboarding/HealthScoreRing';
+import { CTAButton } from '@/components/onboarding/CTAButton';
 import { colors } from '@/constants/theme';
 
 export default function RevealScreen() {
@@ -15,7 +18,7 @@ export default function RevealScreen() {
   const bikeYear = data.year || '';
 
   return (
-    <OnboardingScreen showProgress={false} title="">
+    <OnboardingScreen showProgress={false} title="" showBack={false}>
       <View style={styles.content}>
         {data.photoUrl ? (
           <Animated.View entering={FadeIn.duration(800)} style={styles.imageWrapper}>
@@ -37,28 +40,35 @@ export default function RevealScreen() {
 
         <Animated.View
           entering={FadeInUp.duration(600).delay(data.photoUrl ? 600 : 200)}
-          style={styles.scoreBadge}
+          style={styles.ringWrapper}
         >
-          <Text style={styles.scoreBadgeText}>Health Score: {score}</Text>
+          <HealthScoreRing score={score} size={120} strokeWidth={10} delay={data.photoUrl ? 700 : 300} />
         </Animated.View>
 
-        <Animated.Text
-          entering={FadeInUp.duration(600).delay(data.photoUrl ? 800 : 400)}
-          style={styles.serviceHint}
+        <Animated.View
+          entering={FadeInUp.duration(600).delay(data.photoUrl ? 900 : 500)}
+          style={styles.taskPreview}
         >
-          Next service coming soon
-        </Animated.Text>
+          <Text style={styles.taskPreviewLabel}>Your first maintenance task</Text>
+          <View style={styles.taskPreviewCard}>
+            <View style={styles.taskIconWrapper}>
+              <Wrench size={18} color={colors.orange} />
+            </View>
+            <View style={styles.taskPreviewText}>
+              <Text style={styles.taskPreviewTitle}>Oil Change</Text>
+              <Text style={styles.taskPreviewDue}>Due in 12 days</Text>
+            </View>
+          </View>
+        </Animated.View>
       </View>
 
       <View style={styles.bottomSpacer} />
 
-      <TouchableOpacity
-        style={styles.button}
-        activeOpacity={0.8}
+      <CTAButton
+        label="Enter my garage"
         onPress={() => router.replace('/(tabs)')}
-      >
-        <Text style={styles.buttonText}>Enter my garage</Text>
-      </TouchableOpacity>
+        arrow
+      />
     </OnboardingScreen>
   );
 }
@@ -69,57 +79,76 @@ const styles = StyleSheet.create({
   },
   imageWrapper: {
     width: '100%',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   bikeImage: {
     width: '100%',
-    height: 250,
+    height: 220,
     borderRadius: 20,
   },
   details: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   bikeName: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '700',
     color: colors.textPrimary,
     textAlign: 'center',
+    letterSpacing: -0.5,
   },
   bikeYear: {
     fontSize: 18,
     color: colors.textSecondary,
     marginTop: 4,
   },
-  scoreBadge: {
-    backgroundColor: 'rgba(0,229,153,0.15)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginBottom: 16,
+  ringWrapper: {
+    marginBottom: 20,
   },
-  scoreBadgeText: {
-    fontSize: 15,
+  taskPreview: {
+    width: '100%',
+  },
+  taskPreviewLabel: {
+    fontSize: 13,
     fontWeight: '600',
-    color: colors.green,
+    color: colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 10,
   },
-  serviceHint: {
-    fontSize: 15,
-    color: colors.textSecondary,
+  taskPreviewCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface2,
+    borderRadius: 16,
+    padding: 14,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.04)',
+  },
+  taskIconWrapper: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,159,67,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  taskPreviewText: {
+    flex: 1,
+  },
+  taskPreviewTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  taskPreviewDue: {
+    fontSize: 13,
+    color: colors.orange,
+    fontWeight: '500',
   },
   bottomSpacer: {
     flex: 1,
-  },
-  button: {
-    backgroundColor: colors.green,
-    borderRadius: 16,
-    paddingVertical: 18,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '700',
   },
 });

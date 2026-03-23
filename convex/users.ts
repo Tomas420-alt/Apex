@@ -65,6 +65,95 @@ export const updateCountry = mutation({
   },
 });
 
+// Update subscription status (called after payment confirmation)
+export const updateSubscription = mutation({
+  args: {
+    subscriptionStatus: v.string(),
+    subscriptionPlan: v.optional(v.string()),
+    subscriptionExpiresAt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    await ctx.db.patch(userId, {
+      subscriptionStatus: args.subscriptionStatus,
+      subscriptionPlan: args.subscriptionPlan,
+      subscriptionExpiresAt: args.subscriptionExpiresAt,
+    });
+  },
+});
+
+// Update user profile image from storage
+export const updateProfileImageFromStorage = mutation({
+  args: { storageId: v.id("_storage") },
+  handler: async (ctx, { storageId }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const imageUrl = await ctx.storage.getUrl(storageId);
+    if (!imageUrl) throw new Error("Failed to get image URL");
+
+    await ctx.db.patch(userId, { image: imageUrl });
+  },
+});
+
+// Reset subscription (internal — for testing only)
+export const resetSubscription = internalMutation({
+  args: { email: v.string() },
+  handler: async (ctx, { email }) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("email", q => q.eq("email", email))
+      .first();
+    if (!user) throw new Error("User not found");
+    await ctx.db.patch(user._id, {
+      subscriptionStatus: undefined,
+      subscriptionPlan: undefined,
+      subscriptionExpiresAt: undefined,
+    });
+  },
+});
+
+// Delete user by email (internal — for testing only)
+export const deleteByEmail = internalMutation({
+  args: { email: v.string() },
+  handler: async (ctx, { email }) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("email", q => q.eq("email", email))
+      .first();
+    if (!user) throw new Error("User not found");
+
+    // Delete auth sessions/accounts linked to this user
+    const authSessions = await ctx.db
+      .query("authSessions")
+      .filter(q => q.eq(q.field("userId"), user._id))
+      .collect();
+    for (const session of authSessions) {
+      await ctx.db.delete(session._id);
+    }
+    const authAccounts = await ctx.db
+      .query("authAccounts")
+      .filter(q => q.eq(q.field("userId"), user._id))
+      .collect();
+    for (const account of authAccounts) {
+      await ctx.db.delete(account._id);
+    }
+
+    // Delete bikes and related data
+    const bikes = await ctx.db
+      .query("bikes")
+      .withIndex("by_user", q => q.eq("userId", user._id))
+      .collect();
+    for (const bike of bikes) {
+      await ctx.db.delete(bike._id);
+    }
+
+    await ctx.db.delete(user._id);
+  },
+});
+
 // Delete user and their data (internal only)
 export const deleteUser = internalMutation({
   args: { userId: v.id("users") },

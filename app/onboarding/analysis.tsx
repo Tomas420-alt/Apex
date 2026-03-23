@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInLeft, FadeIn } from 'react-native-reanimated';
+import { ChevronLeft } from 'lucide-react-native';
 import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useOnboarding } from '@/contexts/OnboardingContext';
@@ -67,6 +68,7 @@ export default function AnalysisScreen() {
         experienceLevel: data.experienceLevel || undefined,
         maintenanceComfort: data.maintenanceComfort || undefined,
         country: data.country || undefined,
+        photoStorageId: (data.photoStorageId as any) || undefined,
       });
 
       setFields({ bikeId: bikeId as string });
@@ -112,12 +114,20 @@ export default function AnalysisScreen() {
   // Navigate when both conditions are met
   useEffect(() => {
     if (timerDone && savedRef.current) {
-      router.push('/onboarding/health-score');
+      router.push('/onboarding/cost-of-neglect');
     }
   }, [timerDone]);
 
   return (
     <SafeAreaView style={styles.container}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => router.back()}
+      >
+        <ChevronLeft size={24} color="#FFFFFF" />
+      </TouchableOpacity>
+
+      <View style={styles.centerContent}>
       <Animated.Text entering={FadeIn.duration(400)} style={styles.title}>
         Analyzing your ride...
       </Animated.Text>
@@ -146,6 +156,13 @@ export default function AnalysisScreen() {
           );
         })}
       </View>
+
+      {timerDone && (
+        <Animated.View entering={FadeIn.duration(600)} style={styles.socialProof}>
+          <Text style={styles.socialStat}>12,000+ bikes tracked  ·  4.8★ average</Text>
+        </Animated.View>
+      )}
+      </View>
     </SafeAreaView>
   );
 }
@@ -155,6 +172,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
     paddingHorizontal: 24,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  centerContent: {
+    flex: 1,
     justifyContent: 'center',
   },
   title: {
@@ -186,5 +215,14 @@ const styles = StyleSheet.create({
   },
   stepLabelComplete: {
     color: colors.textPrimary,
+  },
+  socialProof: {
+    marginTop: 40,
+    alignItems: 'center',
+  },
+  socialStat: {
+    fontSize: 13,
+    color: colors.textTertiary,
+    fontWeight: '500',
   },
 });

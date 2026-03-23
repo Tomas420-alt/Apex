@@ -402,7 +402,7 @@ export default function BikeDetailScreen() {
   const currencyIconName = getCurrencyIconName(currentUser?.country);
 
   const updateMileage = useMutation(api.bikes.updateMileage);
-  const completeTask = useMutation(api.maintenanceTasks.complete);
+  const completeTask = useMutation(api.maintenanceTasks.completeAndAdvance);
   const generatePlan = useMutation(api.bikes.generatePlan);
   const resetForInspection = useMutation(api.inspectionMutations.resetForInspection);
 
@@ -449,7 +449,13 @@ export default function BikeDetailScreen() {
     await updateMileage({ id: bikeId, mileage });
   };
 
+  const isSubscribed = currentUser?.subscriptionStatus === 'active';
+
   const handleGeneratePlan = async () => {
+    if (!isSubscribed) {
+      router.push('/membership' as any);
+      return;
+    }
     tasksSnapshotRef.current = (rawTasks ?? []).map((t: MaintenanceTask) => t._id).join(',');
     setIsGenerating(true);
     try {
@@ -670,6 +676,7 @@ export default function BikeDetailScreen() {
           <InspectionChecklist
             bikeId={bikeId}
             inspectionStatus={bike.inspectionStatus}
+            isSubscribed={isSubscribed}
           />
         ) : !plan && bike.inspectionStatus === 'complete' ? (
           /* Inspection done, plan is being generated — show loading, not the generate button */

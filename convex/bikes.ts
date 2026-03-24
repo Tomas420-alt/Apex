@@ -4,6 +4,8 @@ import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ensureUser } from "./users";
 
+const ONE_HOUR = 60 * 60 * 1000;
+
 // Get all bikes for authenticated user
 export const list = query({
   handler: async (ctx) => {
@@ -49,6 +51,33 @@ export const add = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
+    // Rate limit: max 10 bikes added per hour
+    const cutoff = Date.now() - ONE_HOUR;
+    const recentEntries = await ctx.db
+      .query("rateLimits")
+      .withIndex("by_user_action", (q) =>
+        q.eq("userId", userId).eq("action", "addBike")
+      )
+      .collect();
+    if (recentEntries.filter((e) => e.timestamp >= cutoff).length >= 10) {
+      throw new Error("Rate limit exceeded. Please try again later.");
+    }
+    await ctx.db.insert("rateLimits", {
+      userId,
+      action: "addBike",
+      timestamp: Date.now(),
+    });
+
+    // Input validation
+    if (args.make.length > 50) throw new Error("Make name too long (max 50 characters)");
+    if (args.model.length > 50) throw new Error("Model name too long (max 50 characters)");
+    if (args.year < 1900 || args.year > 2100) throw new Error("Invalid year (must be 1900–2100)");
+    if (args.mileage < 0 || args.mileage > 999999) throw new Error("Invalid mileage (must be 0–999999)");
+    if (args.notes !== undefined && args.notes.length > 1000) throw new Error("Notes too long (max 1000 characters)");
+    if (args.lastServiceMileage !== undefined && (args.lastServiceMileage < 0 || args.lastServiceMileage > 999999)) {
+      throw new Error("Invalid last service mileage (must be 0–999999)");
+    }
+
     await ensureUser(ctx);
 
     return await ctx.db.insert("bikes", {
@@ -81,6 +110,16 @@ export const update = mutation({
   handler: async (ctx, { id, ...fields }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
+
+    // Input validation
+    if (fields.make !== undefined && fields.make.length > 50) throw new Error("Make name too long (max 50 characters)");
+    if (fields.model !== undefined && fields.model.length > 50) throw new Error("Model name too long (max 50 characters)");
+    if (fields.year !== undefined && (fields.year < 1900 || fields.year > 2100)) throw new Error("Invalid year (must be 1900–2100)");
+    if (fields.mileage !== undefined && (fields.mileage < 0 || fields.mileage > 999999)) throw new Error("Invalid mileage (must be 0–999999)");
+    if (fields.notes !== undefined && fields.notes.length > 1000) throw new Error("Notes too long (max 1000 characters)");
+    if (fields.lastServiceMileage !== undefined && (fields.lastServiceMileage < 0 || fields.lastServiceMileage > 999999)) {
+      throw new Error("Invalid last service mileage (must be 0–999999)");
+    }
 
     const bike = await ctx.db.get(id);
     if (!bike) throw new Error("Bike not found");
@@ -189,6 +228,9 @@ export const updateMileage = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
+    // Input validation
+    if (mileage < 0 || mileage > 999999) throw new Error("Invalid mileage (must be 0–999999)");
+
     const bike = await ctx.db.get(id);
     if (!bike) throw new Error("Bike not found");
     if (bike.userId !== userId) throw new Error("Unauthorized");
@@ -271,21 +313,5 @@ export const setHeroImage = internalMutation({
   },
   handler: async (ctx, { bikeId, heroImageUrl }) => {
     await ctx.db.patch(bikeId, { heroImageUrl });
-  },
-});
-
-// TEMP: Trigger hero image generation from client (for testing)
-export const triggerHeroGen = mutation({
-  args: {
-    bikeId: v.id("bikes"),
-    photoStorageId: v.id("_storage"),
-  },
-  handler: async (ctx, { bikeId, photoStorageId }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
-    await ctx.scheduler.runAfter(0, internal.ai.generateHeroImage, {
-      bikeId,
-      photoStorageId,
-    });
   },
 });

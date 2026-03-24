@@ -106,7 +106,7 @@ export default function ServiceHistoryScreen() {
       await MediaLibrary.saveToLibraryAsync(uri);
       Alert.alert('Saved', 'Service history saved to your photo gallery.');
     } catch (error) {
-      console.error('Failed to save:', error);
+      if (__DEV__) console.error('Failed to save:', error);
       Alert.alert('Error', 'Failed to save image.');
     } finally {
       setSaving(false);
@@ -120,7 +120,7 @@ export default function ServiceHistoryScreen() {
       const uri = await (viewShotRef.current as any).capture();
       await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Service History' });
     } catch (error) {
-      console.error('Failed to share:', error);
+      if (__DEV__) console.error('Failed to share:', error);
     } finally {
       setSaving(false);
     }
@@ -129,6 +129,26 @@ export default function ServiceHistoryScreen() {
   const ownerName = user?.name || 'Owner';
   const dateGenerated = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
   const isSubscribed = user?.subscriptionStatus === 'active';
+
+  // Fake data for free users — makes the blurred doc look full and real
+  const FAKE_ENTRIES = [
+    { name: 'Oil & Filter Change', date: 'Feb 12, 2026' },
+    { name: 'Brake Pads - Front', date: 'Jan 28, 2026' },
+    { name: 'Coolant Flush & Replace', date: 'Jan 15, 2026' },
+    { name: 'Air Filter Replacement', date: 'Dec 20, 2025' },
+    { name: 'Spark Plugs Replaced', date: 'Dec 3, 2025' },
+    { name: 'Drive Chain Adjustment', date: 'Nov 18, 2025' },
+    { name: 'Fork Oil Change', date: 'Nov 2, 2025' },
+    { name: 'Brake Fluid Flush', date: 'Oct 15, 2025' },
+    { name: 'Valve Clearance Check', date: 'Sep 28, 2025' },
+    { name: 'Rear Brake Pads', date: 'Sep 10, 2025' },
+    { name: 'Throttle Cable Lubrication', date: 'Aug 22, 2025' },
+    { name: 'Battery Replacement', date: 'Aug 5, 2025' },
+  ];
+  const fakeBikeName = bikes.length > 0
+    ? `${bikes[0].year} ${(bikes[0] as any).make} ${(bikes[0] as any).model}`
+    : '2024 Sport Motorcycle';
+  const showFakeData = !isSubscribed && groupedByBike.length === 0;
 
   return (
     <SafeAreaView style={s.container}>
@@ -156,8 +176,27 @@ export default function ServiceHistoryScreen() {
                 <Text style={s.docDate}>Generated {dateGenerated}</Text>
               </View>
 
-              {/* Per-bike sections */}
-              {groupedByBike.length === 0 ? (
+              {/* Per-bike sections — show fake data for free users with no history */}
+              {showFakeData ? (
+                <View style={s.docBikeSection}>
+                  <View style={s.docBikeHeader}>
+                    <Text style={s.docBikeName}>{fakeBikeName}</Text>
+                  </View>
+                  <View style={s.docTableHeader}>
+                    <Text style={[s.docTableHeaderText, { flex: 2 }]}>Service</Text>
+                    <Text style={[s.docTableHeaderText, { flex: 1, textAlign: 'right' }]}>Date</Text>
+                  </View>
+                  {FAKE_ENTRIES.map((entry, i) => (
+                    <View key={i} style={[s.docRow, i % 2 === 0 && s.docRowAlt]}>
+                      <Text style={[s.docRowText, { flex: 2 }]}>{entry.name}</Text>
+                      <Text style={[s.docRowDate, { flex: 1, textAlign: 'right' }]}>{entry.date}</Text>
+                    </View>
+                  ))}
+                  <View style={s.docBikeSummary}>
+                    <Text style={s.docBikeSummaryText}>12 services completed</Text>
+                  </View>
+                </View>
+              ) : groupedByBike.length === 0 ? (
                 <View style={s.docEmpty}>
                   <Text style={s.docEmptyText}>No service records yet.</Text>
                 </View>
@@ -167,14 +206,10 @@ export default function ServiceHistoryScreen() {
                     <View style={s.docBikeHeader}>
                       <Text style={s.docBikeName}>{group.bikeName}</Text>
                     </View>
-
-                    {/* Table header */}
                     <View style={s.docTableHeader}>
                       <Text style={[s.docTableHeaderText, { flex: 2 }]}>Service</Text>
                       <Text style={[s.docTableHeaderText, { flex: 1, textAlign: 'right' }]}>Date</Text>
                     </View>
-
-                    {/* Entries */}
                     {group.entries.map((entry, i) => (
                       <View key={entry._id} style={[s.docRow, i % 2 === 0 && s.docRowAlt]}>
                         <Text style={[s.docRowText, { flex: 2 }]}>
@@ -185,7 +220,6 @@ export default function ServiceHistoryScreen() {
                         </Text>
                       </View>
                     ))}
-
                     <View style={s.docBikeSummary}>
                       <Text style={s.docBikeSummaryText}>
                         {group.entries.length} service{group.entries.length !== 1 ? 's' : ''} completed

@@ -320,7 +320,8 @@ const styles = StyleSheet.create({
   },
   dayCellToday: {
     backgroundColor: colors.bg,
-    borderColor: colors.bg,
+    borderColor: colors.green,
+    borderWidth: 2,
   },
   dayCellTodaySelected: {
     backgroundColor: colors.surface2,

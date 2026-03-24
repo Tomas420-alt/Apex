@@ -65,7 +65,6 @@ export default function HomeScreen() {
   // Bike data
   const bikes = (useQuery(api.bikes.list) ?? []) as BikeDoc[];
   const currentUser = useQuery(api.users.getCurrent);
-  const updateSubscription = useMutation(api.users.updateSubscription);
   const generateUploadUrl = useMutation(api.imageEdits.generateUploadUrl);
   const updateBikeImageFromStorage = useMutation(api.bikes.updateBikeImageFromStorage);
 
@@ -80,13 +79,14 @@ export default function HomeScreen() {
 
   const currency = getCurrencySymbol(currentUser?.country);
   const currencyIconName = getCurrencyIconName(currentUser?.country);
+  const isSubscribed = currentUser?.subscriptionStatus === 'active';
 
   // Cleanup orphaned tasks once on mount
   const hasCleanedUp = useRef(false);
   useEffect(() => {
     if (!hasCleanedUp.current && currentUser) {
       hasCleanedUp.current = true;
-      cleanupOrphaned().catch(console.error);
+      cleanupOrphaned().catch((e: any) => { if (__DEV__) console.error(e); });
     }
   }, [currentUser, cleanupOrphaned]);
 
@@ -112,7 +112,7 @@ export default function HomeScreen() {
       const { storageId } = await uploadResult.json();
       await updateBikeImageFromStorage({ bikeId, storageId });
     } catch (error) {
-      console.error('Failed to upload image:', error);
+      if (__DEV__) console.error('Failed to upload image:', error);
     }
   };
 
@@ -182,7 +182,7 @@ export default function HomeScreen() {
     try {
       await completeMutation({ id });
     } catch (e) {
-      console.error('Failed to complete task:', e);
+      if (__DEV__) console.error('Failed to complete task:', e);
     } finally {
       setCompletingIds((prev) => {
         const next = new Set(prev);
@@ -246,14 +246,14 @@ export default function HomeScreen() {
             {/* Summary Cards — filtered by active bike */}
             {!isLoading && (
               <SummaryCards
-                overdueCount={filteredOverdue.length}
-                dueCount={filteredAllTasks.length}
-                completedCount={filteredCompletedCount}
-                totalSavings={filteredSavings}
+                overdueCount={isSubscribed ? filteredOverdue.length : 0}
+                dueCount={isSubscribed ? filteredAllTasks.length : 0}
+                completedCount={isSubscribed ? filteredCompletedCount : 0}
+                totalSavings={isSubscribed ? filteredSavings : 0}
                 currency={currency}
                 currencyIconName={currencyIconName}
-                completedProgress={yearlyStats ? (yearlyStats.totalThisYear > 0 ? yearlyStats.completedThisYear / yearlyStats.totalThisYear : 0) : undefined}
-                savingsProgress={yearlyStats ? (yearlyStats.projectedSavings > 0 ? yearlyStats.savedThisYear / yearlyStats.projectedSavings : 0) : undefined}
+                completedProgress={isSubscribed && yearlyStats ? (yearlyStats.totalThisYear > 0 ? yearlyStats.completedThisYear / yearlyStats.totalThisYear : 0) : undefined}
+                savingsProgress={isSubscribed && yearlyStats ? (yearlyStats.projectedSavings > 0 ? yearlyStats.savedThisYear / yearlyStats.projectedSavings : 0) : undefined}
                 activeTab={activeMetricTab}
                 onTabPress={setActiveMetricTab}
               />
@@ -272,7 +272,7 @@ export default function HomeScreen() {
                     <View style={styles.loadingContainer}>
                       <ActivityIndicator size="large" color={colors.green} />
                     </View>
-                  ) : filteredTasks.filter((t) => t.status === 'due').length === 0 ? (
+                  ) : !isSubscribed || filteredTasks.filter((t) => t.status === 'due').length === 0 ? (
                     <EmptyUpcoming />
                   ) : (
                     filteredTasks.filter((t) => t.status === 'due').map((task) => (
@@ -298,7 +298,7 @@ export default function HomeScreen() {
                   <Text style={styles.sectionTitle}>Overdue Tasks</Text>
                 </View>
                 <View style={styles.taskList}>
-                  {filteredOverdue.length === 0 ? (
+                  {!isSubscribed || filteredOverdue.length === 0 ? (
                     <EmptyOverdue />
                   ) : (
                     filteredOverdue.map((task) => (
@@ -324,7 +324,7 @@ export default function HomeScreen() {
                   <Text style={styles.sectionTitle}>Completed Tasks</Text>
                 </View>
                 <View style={styles.taskList}>
-                  {filteredCompleted.length === 0 ? (
+                  {!isSubscribed || filteredCompleted.length === 0 ? (
                     <EmptyCompleted />
                   ) : (
                     <CompletedSection
@@ -345,48 +345,16 @@ export default function HomeScreen() {
             {/* Savings Breakdown */}
             {activeMetricTab === 'saved' && (
               <SavingsBreakdown
-                savedThisYear={yearlyStats?.savedThisYear ?? 0}
-                projectedSavings={yearlyStats?.projectedSavings ?? 0}
-                partsSpentThisYear={yearlyStats?.partsSpentThisYear ?? 0}
-                projectedPartsCost={yearlyStats?.projectedPartsCost ?? 0}
-                mechanicCostThisYear={yearlyStats?.mechanicCostThisYear ?? 0}
+                savedThisYear={isSubscribed ? (yearlyStats?.savedThisYear ?? 0) : 0}
+                projectedSavings={isSubscribed ? (yearlyStats?.projectedSavings ?? 0) : 0}
+                partsSpentThisYear={isSubscribed ? (yearlyStats?.partsSpentThisYear ?? 0) : 0}
+                projectedPartsCost={isSubscribed ? (yearlyStats?.projectedPartsCost ?? 0) : 0}
+                mechanicCostThisYear={isSubscribed ? (yearlyStats?.mechanicCostThisYear ?? 0) : 0}
                 currency={currency}
               />
             )}
           </View>
         </ScrollView>
-      )}
-
-      {/* TEMP: Test onboarding */}
-      {true && (
-        <>
-          <TouchableOpacity
-            style={styles.testOnboardingBtn}
-            onPress={() => router.push('/onboarding' as any)}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.testOnboardingText}>Test Onboarding</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.testOnboardingBtn, {
-              backgroundColor: currentUser?.subscriptionStatus === 'active' ? colors.green : colors.purple,
-              bottom: 145,
-            }]}
-            onPress={async () => {
-              const isActive = currentUser?.subscriptionStatus === 'active';
-              await updateSubscription({
-                subscriptionStatus: isActive ? 'free' : 'active',
-                subscriptionPlan: isActive ? undefined : 'annual',
-              });
-            }}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.testOnboardingText}>
-              {currentUser?.subscriptionStatus === 'active' ? 'Sub: PRO (tap to switch to Free)' : 'Sub: FREE (tap to switch to Pro)'}
-            </Text>
-          </TouchableOpacity>
-        </>
       )}
 
       {/* Complete Confirmation Modal */}
@@ -524,10 +492,4 @@ const styles = StyleSheet.create({
   modalConfirmBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: colors.green, alignItems: 'center' },
   modalConfirmText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
 
-  // TEMP buttons
-  testOnboardingBtn: {
-    position: 'absolute', bottom: 100, alignSelf: 'center',
-    backgroundColor: colors.blue, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20,
-  },
-  testOnboardingText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
 });

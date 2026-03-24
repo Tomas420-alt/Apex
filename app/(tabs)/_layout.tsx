@@ -2,6 +2,7 @@ import { Redirect } from 'expo-router';
 import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
 import { useConvexAuth, useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 export default function TabLayout() {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -24,6 +25,9 @@ export default function TabLayout() {
   if (user === null || !user.hasCompletedOnboarding) {
     return <Redirect href="/onboarding" />;
   }
+
+  // Register for push notifications after auth + onboarding
+  usePushNotifications();
 
   return (
     <NativeTabs minimizeBehavior="onScrollDown" tintColor="#00E599" backgroundColor="rgba(13,13,18,0.75)" blurEffect="systemUltraThinMaterialDark">

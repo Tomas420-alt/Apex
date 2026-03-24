@@ -64,7 +64,7 @@ export default function AddTaskScreen() {
       });
       router.back();
     } catch (error) {
-      console.error('Failed to add task:', error);
+      if (__DEV__) console.error('Failed to add task:', error);
       Alert.alert('Error', 'Failed to add task. Please try again.');
     } finally {
       setIsSaving(false);

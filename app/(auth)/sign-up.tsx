@@ -58,7 +58,7 @@ export default function SignUpScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     } catch (err: any) {
-      console.error("Sign up error:", err);
+      if (__DEV__) console.error("Sign up error:", err);
       const raw = err?.message?.toLowerCase() ?? "";
       let message = "Sign up failed. Please try again.";
       if (raw.includes("already") || raw.includes("exists") || raw.includes("duplicate")) {

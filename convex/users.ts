@@ -41,6 +41,9 @@ export const updatePreferences = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
+    // Input validation
+    if (args.phone !== undefined && args.phone.length > 20) throw new Error("Phone number too long (max 20 characters)");
+
     const user = await ctx.db.get(userId);
     if (!user) throw new Error("User not found");
 
@@ -54,6 +57,16 @@ export const updatePreferences = mutation({
   },
 });
 
+// Save Expo push token for push notifications
+export const savePushToken = mutation({
+  args: { token: v.string() },
+  handler: async (ctx, { token }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    await ctx.db.patch(userId, { expoPushToken: token });
+  },
+});
+
 // Update user country (called immediately during onboarding)
 export const updateCountry = mutation({
   args: { country: v.string() },
@@ -61,11 +74,16 @@ export const updateCountry = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
+    // Input validation
+    if (country.length > 50) throw new Error("Country name too long (max 50 characters)");
+
     await ctx.db.patch(userId, { country });
   },
 });
 
-// Update subscription status (called after payment confirmation)
+// Update subscription status from client — only allows clearing/expiring subscriptions.
+// Activating a subscription must go through validateAndActivateSubscription action
+// which performs server-side validation.
 export const updateSubscription = mutation({
   args: {
     subscriptionStatus: v.string(),
@@ -76,7 +94,60 @@ export const updateSubscription = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
+    // Input validation
+    const validStatuses = ["active", "expired", "cancelled", "inactive"];
+    if (!validStatuses.includes(args.subscriptionStatus)) {
+      throw new Error("Invalid subscription status");
+    }
+    if (args.subscriptionPlan !== undefined) {
+      const validPlans = ["monthly", "yearly"];
+      if (!validPlans.includes(args.subscriptionPlan)) {
+        throw new Error("Invalid subscription plan");
+      }
+    }
+
+    // Only allow clients to set non-active statuses (expired, cancelled, etc.)
+    // Activation must go through server-side validated flow
+    if (args.subscriptionStatus === "active") {
+      throw new Error(
+        "Cannot set subscription to active from client. Use the validated activation flow."
+      );
+    }
+
     await ctx.db.patch(userId, {
+      subscriptionStatus: args.subscriptionStatus,
+      subscriptionPlan: args.subscriptionPlan,
+      subscriptionExpiresAt: args.subscriptionExpiresAt,
+    });
+  },
+});
+
+// Activate subscription — internal only, called after server-side validation
+export const activateSubscription = internalMutation({
+  args: {
+    userId: v.id("users"),
+    subscriptionPlan: v.optional(v.string()),
+    subscriptionExpiresAt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.userId, {
+      subscriptionStatus: "active",
+      subscriptionPlan: args.subscriptionPlan,
+      subscriptionExpiresAt: args.subscriptionExpiresAt,
+    });
+  },
+});
+
+// Update subscription status — internal only, called by webhook for deactivation events
+export const updateSubscriptionInternal = internalMutation({
+  args: {
+    userId: v.id("users"),
+    subscriptionStatus: v.string(),
+    subscriptionPlan: v.optional(v.string()),
+    subscriptionExpiresAt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.userId, {
       subscriptionStatus: args.subscriptionStatus,
       subscriptionPlan: args.subscriptionPlan,
       subscriptionExpiresAt: args.subscriptionExpiresAt,

@@ -59,7 +59,7 @@ export default function BikePartsScreen() {
     try {
       await togglePurchased({ partId });
     } catch (error) {
-      console.error('Failed to toggle part:', error);
+      if (__DEV__) console.error('Failed to toggle part:', error);
     } finally {
       setTogglingId(null);
     }

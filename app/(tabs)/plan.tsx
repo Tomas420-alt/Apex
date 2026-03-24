@@ -34,6 +34,8 @@ import {
   Shield,
   ChevronDown,
   History,
+  Crown,
+  Sparkles,
 } from 'lucide-react-native';
 import { GenerateButton } from '../../components/GenerateButton';
 import { InspectionChecklist } from '../../components/InspectionChecklist';
@@ -211,7 +213,7 @@ export default function PlanScreen() {
     try {
       await generatePlan({ bikeId });
     } catch (error) {
-      console.error('Failed to generate plan:', error);
+      if (__DEV__) console.error('Failed to generate plan:', error);
       Alert.alert('Error', 'Failed to generate plan. Please try again.');
       setIsGenerating(false);
     }
@@ -222,7 +224,7 @@ export default function PlanScreen() {
     try {
       await completeAndAdvance({ id: taskId });
     } catch (error) {
-      console.error('Failed to complete task:', error);
+      if (__DEV__) console.error('Failed to complete task:', error);
     } finally {
       setCompletingTaskId(null);
     }
@@ -244,7 +246,7 @@ export default function PlanScreen() {
         setSelectedBikeIndex(Math.max(0, bikes.length - 2));
       }
     } catch (error) {
-      console.error('Failed to delete bike:', error);
+      if (__DEV__) console.error('Failed to delete bike:', error);
     }
     setBikeToDelete(null);
   };
@@ -389,122 +391,151 @@ export default function PlanScreen() {
         /* Plan with tasks */
         ) : bikeId && plan ? (
           <>
-            {/* Progress overview — year-scoped with recurring projections */}
-            <View style={s.progressOuter}>
-              <BlurView intensity={20} tint="dark" style={s.progressCard}>
-                <View style={s.progressHeader}>
-                  <Text style={s.progressLabel}>{new Date().getFullYear()} Progress</Text>
-                  <Text style={s.progressCount}>
-                    <Text style={{ color: colors.green }}>{yearCompletedCount}</Text>
-                    <Text style={{ color: colors.textTertiary }}>/{yearTotalCount}</Text>
-                  </Text>
-                </View>
-                <View style={s.progressBarTrack}>
-                  <View style={[s.progressBarFill, { width: `${Math.max(yearProgress * 100, 2)}%` as any }]} />
-                </View>
-                <View style={s.progressStats}>
-                  <View style={s.progressStat}>
-                    <Clock size={13} color={colors.orange} />
-                    <Text style={s.progressStatValue}>{yearRemaining}</Text>
-                    <Text style={s.progressStatLabel}>Remaining</Text>
+            <View style={{ position: 'relative' }}>
+              {/* Progress overview — year-scoped with recurring projections */}
+              <View style={s.progressOuter}>
+                <BlurView intensity={20} tint="dark" style={s.progressCard}>
+                  <View style={s.progressHeader}>
+                    <Text style={s.progressLabel}>{new Date().getFullYear()} Progress</Text>
+                    <Text style={s.progressCount}>
+                      <Text style={{ color: colors.green }}>{yearCompletedCount}</Text>
+                      <Text style={{ color: colors.textTertiary }}>/{yearTotalCount}</Text>
+                    </Text>
                   </View>
-                  {plan.nextServiceDate && (
+                  <View style={s.progressBarTrack}>
+                    <View style={[s.progressBarFill, { width: `${Math.max(yearProgress * 100, 2)}%` as any }]} />
+                  </View>
+                  <View style={s.progressStats}>
                     <View style={s.progressStat}>
-                      <Calendar size={13} color={colors.blue} />
-                      <Text style={s.progressStatValue}>{plan.nextServiceDate}</Text>
-                      <Text style={s.progressStatLabel}>Next Service</Text>
+                      <Clock size={13} color={colors.orange} />
+                      <Text style={s.progressStatValue}>{yearRemaining}</Text>
+                      <Text style={s.progressStatLabel}>Remaining</Text>
                     </View>
+                    {plan.nextServiceDate && (
+                      <View style={s.progressStat}>
+                        <Calendar size={13} color={colors.blue} />
+                        <Text style={s.progressStatValue}>{plan.nextServiceDate}</Text>
+                        <Text style={s.progressStatLabel}>Next Service</Text>
+                      </View>
+                    )}
+                    <View style={s.progressStat}>
+                      <CheckCircle2 size={13} color={colors.green} />
+                      <Text style={s.progressStatValue}>{Math.round(yearProgress * 100)}%</Text>
+                      <Text style={s.progressStatLabel}>Complete</Text>
+                    </View>
+                  </View>
+                </BlurView>
+              </View>
+
+              {/* Maintenance Tasks */}
+              <Text style={s.sectionLabel}>Maintenance Tasks</Text>
+              <View style={s.taskListOuter}>
+                <BlurView intensity={15} tint="dark" style={s.taskListCard}>
+                  {sortedActive.map((task, i) => (
+                    <Animated.View key={task._id} layout={Layout.springify()} entering={FadeIn.duration(300)} exiting={FadeOut.duration(200)}>
+                      {i > 0 && <View style={s.taskDivider} />}
+                      <TaskRow
+                        task={task}
+                        onPress={() => setSelectedTask(task)}
+                        currency={currency}
+                      />
+                    </Animated.View>
+                  ))}
+                </BlurView>
+              </View>
+
+              {/* Completion History (collapsible) */}
+              {(completionHistory ?? []).length > 0 && (
+                <>
+                  <TouchableOpacity
+                    style={s.historyToggle}
+                    onPress={() => setHistoryExpanded(!historyExpanded)}
+                    activeOpacity={0.7}
+                  >
+                    <History size={14} color={colors.textTertiary} />
+                    <Text style={s.historyToggleText}>
+                      Completion History ({(completionHistory ?? []).length})
+                    </Text>
+                    <Animated.View style={{ transform: [{ rotate: historyExpanded ? '180deg' : '0deg' }] }}>
+                      <ChevronDown size={16} color={colors.textTertiary} />
+                    </Animated.View>
+                  </TouchableOpacity>
+
+                  {historyExpanded && (
+                    <Animated.View entering={FadeIn.duration(200)}>
+                      <View style={s.taskListOuter}>
+                        <BlurView intensity={15} tint="dark" style={s.taskListCard}>
+                          {(completionHistory ?? []).map((entry, i) => (
+                            <React.Fragment key={entry._id}>
+                              {i > 0 && <View style={s.taskDivider} />}
+                              <View style={s.historyRow}>
+                                <View style={s.historyRowLeft}>
+                                  <CheckCircle2 size={14} color={colors.green} />
+                                  <View>
+                                    <Text style={s.historyName}>{entry.taskName}</Text>
+                                    <Text style={s.historyDate}>
+                                      {new Date(entry.completedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                      {entry.dueDate ? ` · was due ${new Date(entry.dueDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : ''}
+                                    </Text>
+                                  </View>
+                                </View>
+                                {entry.estimatedLaborCostUsd ? (
+                                  <Text style={s.historySaved}>+{currency}{Math.round(entry.estimatedLaborCostUsd)}</Text>
+                                ) : null}
+                              </View>
+                            </React.Fragment>
+                          ))}
+                        </BlurView>
+                      </View>
+                    </Animated.View>
                   )}
-                  <View style={s.progressStat}>
-                    <CheckCircle2 size={13} color={colors.green} />
-                    <Text style={s.progressStatValue}>{Math.round(yearProgress * 100)}%</Text>
-                    <Text style={s.progressStatLabel}>Complete</Text>
+                </>
+              )}
+
+              {/* Bottom actions */}
+              <View style={s.bottomActions}>
+                <TouchableOpacity style={s.partsButton} onPress={handleViewAllParts} activeOpacity={0.8}>
+                  <Package size={16} color="#FFFFFF" />
+                  <Text style={s.partsButtonText}>All Parts</Text>
+                </TouchableOpacity>
+                <View style={{ flex: 1 }}>
+                  <GenerateButton
+                    label="Regenerate"
+                    loadingLabel="Regenerating"
+                    onPress={handleGeneratePlan}
+                    isLoading={isGenerating}
+                    variant="secondary"
+                  />
+                </View>
+              </View>
+
+              {/* Paywall blur overlay for free users */}
+              {!isSubscribed && (
+                <View style={s.planPaywallOverlay} pointerEvents="box-none">
+                  <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
+                  <View style={s.planPaywallCard} pointerEvents="box-none">
+                    <View style={s.planPaywallBadge}>
+                      <Crown size={26} color="#FFD700" />
+                    </View>
+                    <Text style={s.planPaywallTitle}>Upgrade to ApexTune Pro</Text>
+                    <Text style={s.planPaywallSubtitle}>
+                      Unlock your full AI maintenance plan, task tracking, and parts lists.
+                    </Text>
+                    <TouchableOpacity
+                      style={s.planPaywallButton}
+                      onPress={() => router.push('/membership' as any)}
+                      activeOpacity={0.85}
+                    >
+                      <Sparkles size={16} color="#000000" />
+                      <Text style={s.planPaywallButtonText}>Upgrade to Pro</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
-              </BlurView>
+              )}
             </View>
 
-            {/* Maintenance Tasks */}
-            <Text style={s.sectionLabel}>Maintenance Tasks</Text>
-            <View style={s.taskListOuter}>
-              <BlurView intensity={15} tint="dark" style={s.taskListCard}>
-                {sortedActive.map((task, i) => (
-                  <Animated.View key={task._id} layout={Layout.springify()} entering={FadeIn.duration(300)} exiting={FadeOut.duration(200)}>
-                    {i > 0 && <View style={s.taskDivider} />}
-                    <TaskRow
-                      task={task}
-                      onPress={() => setSelectedTask(task)}
-                      currency={currency}
-                    />
-                  </Animated.View>
-                ))}
-              </BlurView>
-            </View>
-
-            {/* Completion History (collapsible) */}
-            {(completionHistory ?? []).length > 0 && (
-              <>
-                <TouchableOpacity
-                  style={s.historyToggle}
-                  onPress={() => setHistoryExpanded(!historyExpanded)}
-                  activeOpacity={0.7}
-                >
-                  <History size={14} color={colors.textTertiary} />
-                  <Text style={s.historyToggleText}>
-                    Completion History ({(completionHistory ?? []).length})
-                  </Text>
-                  <Animated.View style={{ transform: [{ rotate: historyExpanded ? '180deg' : '0deg' }] }}>
-                    <ChevronDown size={16} color={colors.textTertiary} />
-                  </Animated.View>
-                </TouchableOpacity>
-
-                {historyExpanded && (
-                  <Animated.View entering={FadeIn.duration(200)}>
-                    <View style={s.taskListOuter}>
-                      <BlurView intensity={15} tint="dark" style={s.taskListCard}>
-                        {(completionHistory ?? []).map((entry, i) => (
-                          <React.Fragment key={entry._id}>
-                            {i > 0 && <View style={s.taskDivider} />}
-                            <View style={s.historyRow}>
-                              <View style={s.historyRowLeft}>
-                                <CheckCircle2 size={14} color={colors.green} />
-                                <View>
-                                  <Text style={s.historyName}>{entry.taskName}</Text>
-                                  <Text style={s.historyDate}>
-                                    {new Date(entry.completedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                                    {entry.dueDate ? ` · was due ${new Date(entry.dueDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : ''}
-                                  </Text>
-                                </View>
-                              </View>
-                              {entry.estimatedLaborCostUsd ? (
-                                <Text style={s.historySaved}>+{currency}{Math.round(entry.estimatedLaborCostUsd)}</Text>
-                              ) : null}
-                            </View>
-                          </React.Fragment>
-                        ))}
-                      </BlurView>
-                    </View>
-                  </Animated.View>
-                )}
-              </>
-            )}
-
-            {/* Bottom actions */}
-            <View style={s.bottomActions}>
-              <TouchableOpacity style={s.partsButton} onPress={handleViewAllParts} activeOpacity={0.8}>
-                <Package size={16} color="#FFFFFF" />
-                <Text style={s.partsButtonText}>All Parts</Text>
-              </TouchableOpacity>
-              <View style={{ flex: 1 }}>
-                <GenerateButton
-                  label="Regenerate"
-                  loadingLabel="Regenerating"
-                  onPress={handleGeneratePlan}
-                  isLoading={isGenerating}
-                  variant="secondary"
-                />
-              </View>
-            </View>
+            {/* Free user manual add — remains accessible below the blur */}
+            {!isSubscribed && <FreeUserPlanCard />}
           </>
         ) : null}
       </ScrollView>
@@ -850,6 +881,57 @@ const s = StyleSheet.create({
 
   // Task row top right
   taskTopRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+
+  // Plan paywall overlay
+  planPaywallOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 16,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  planPaywallCard: {
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  planPaywallBadge: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,215,0,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  planPaywallTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    marginBottom: 6,
+    letterSpacing: -0.3,
+  },
+  planPaywallSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 22,
+  },
+  planPaywallButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.green,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+  },
+  planPaywallButtonText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#000000',
+  },
 
   // History toggle
   historyToggle: {

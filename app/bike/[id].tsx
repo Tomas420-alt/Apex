@@ -461,7 +461,7 @@ export default function BikeDetailScreen() {
     try {
       await generatePlan({ bikeId });
     } catch (error) {
-      console.error('Failed to generate plan:', error);
+      if (__DEV__) console.error('Failed to generate plan:', error);
       Alert.alert('Error', 'Failed to generate maintenance plan. Please try again.');
       setIsGenerating(false);
     }
@@ -472,7 +472,7 @@ export default function BikeDetailScreen() {
     try {
       await completeTask({ id: taskId });
     } catch (error) {
-      console.error('Failed to complete task:', error);
+      if (__DEV__) console.error('Failed to complete task:', error);
       Alert.alert('Error', 'Failed to mark task as complete. Please try again.');
     } finally {
       setCompletingTaskId(null);

@@ -27,6 +27,7 @@ export default defineSchema({
         email: v.boolean(),
       })
     ),
+    expoPushToken: v.optional(v.string()),
   }).index("email", ["email"]),
 
   bikes: defineTable({
@@ -135,7 +136,14 @@ export default defineSchema({
     status: v.string(),
     messageSid: v.optional(v.string()),
     emailId: v.optional(v.string()),
+    reminderType: v.optional(v.string()),
   })
     .index("by_task", ["taskId"])
     .index("by_user_and_status", ["userId", "status"]),
+
+  rateLimits: defineTable({
+    userId: v.string(),
+    action: v.string(),
+    timestamp: v.number(),
+  }).index("by_user_action", ["userId", "action"]),
 });

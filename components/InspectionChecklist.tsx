@@ -84,7 +84,7 @@ export function InspectionChecklist({ bikeId, inspectionStatus, isSubscribed }: 
             try {
               await startInspection({ bikeId });
             } catch (e) {
-              console.error(e);
+              if (__DEV__) console.error(e);
               setIsStarting(false);
             }
           }}
@@ -139,7 +139,7 @@ export function InspectionChecklist({ bikeId, inspectionStatus, isSubscribed }: 
             try {
               await startInspection({ bikeId });
             } catch (e) {
-              console.error(e);
+              if (__DEV__) console.error(e);
               setIsStarting(false);
             }
           }}
@@ -178,7 +178,7 @@ export function InspectionChecklist({ bikeId, inspectionStatus, isSubscribed }: 
       }
       await completeInspection({ bikeId });
     } catch (e) {
-      console.error(e);
+      if (__DEV__) console.error(e);
       setIsCompleting(false);
     }
   };

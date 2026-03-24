@@ -141,16 +141,12 @@ export const completeInspection = mutation({
   },
 });
 
-// TEMP: Reset a bike for inspection testing — deletes plan, tasks, parts, inspection items
-export const resetForInspection = mutation({
+// Reset a bike for inspection — deletes plan, tasks, parts, inspection items (internal only)
+export const resetForInspection = internalMutation({
   args: { bikeId: v.id("bikes") },
   handler: async (ctx, { bikeId }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
-
     const bike = await ctx.db.get(bikeId);
     if (!bike) throw new Error("Bike not found");
-    if (bike.userId !== userId) throw new Error("Unauthorized");
 
     // Delete all plans for this bike
     const plans = await ctx.db

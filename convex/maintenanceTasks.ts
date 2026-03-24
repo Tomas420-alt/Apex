@@ -286,6 +286,24 @@ export const addManual = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
+    // Input validation
+    if (args.name.trim().length === 0) throw new Error("Task name is required");
+    if (args.name.length > 200) throw new Error("Task name too long (max 200 characters)");
+    if (args.description !== undefined && args.description.length > 1000) throw new Error("Description too long (max 1000 characters)");
+    const validPriorities = ["low", "medium", "high", "critical"];
+    if (!validPriorities.includes(args.priority)) {
+      throw new Error("Invalid priority (must be low, medium, high, or critical)");
+    }
+    if (args.dueMileage !== undefined && (args.dueMileage < 0 || args.dueMileage > 999999)) {
+      throw new Error("Invalid due mileage (must be 0–999999)");
+    }
+    if (args.intervalKm !== undefined && (args.intervalKm < 0 || args.intervalKm > 999999)) {
+      throw new Error("Invalid interval km (must be 0–999999)");
+    }
+    if (args.intervalMonths !== undefined && (args.intervalMonths < 0 || args.intervalMonths > 120)) {
+      throw new Error("Invalid interval months (must be 0–120)");
+    }
+
     const bike = await ctx.db.get(args.bikeId);
     if (!bike || bike.userId !== userId) throw new Error("Bike not found");
 

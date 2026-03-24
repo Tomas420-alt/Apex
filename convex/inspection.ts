@@ -7,6 +7,8 @@ import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
 
+const ONE_HOUR = 60 * 60 * 1000;
+
 const getOpenAIClient = () => {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY environment variable is not set");
@@ -81,6 +83,20 @@ export const generateChecklist = internalAction({
   },
   handler: async (ctx, { bikeId, userId, make, model, year, mileage, notes }) => {
     try {
+      // Rate limit: max 5 per hour
+      const recentCount = await ctx.runQuery(internal.rateLimit.checkRateLimit, {
+        userId,
+        action: "generateChecklist",
+        windowMs: ONE_HOUR,
+      });
+      if (recentCount >= 5) {
+        throw new Error("Rate limit exceeded. Please try again later.");
+      }
+      await ctx.runMutation(internal.rateLimit.recordAction, {
+        userId,
+        action: "generateChecklist",
+      });
+
       const openai = getOpenAIClient();
 
       // Step 1: Research bike specs via web search

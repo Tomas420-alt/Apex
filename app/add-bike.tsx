@@ -105,7 +105,7 @@ export default function AddBikeScreen() {
         }
       } catch (error) {
         if (cancelled) return;
-        console.error('Epic shot failed:', error);
+        if (__DEV__) console.error('Epic shot failed:', error);
         Alert.alert(
           'Oops',
           'The Los Santos Customs crew had trouble with your photo. Want to try again?',
@@ -161,7 +161,7 @@ export default function AddBikeScreen() {
       });
       router.back();
     } catch (error) {
-      console.error('Failed to add bike:', error);
+      if (__DEV__) console.error('Failed to add bike:', error);
       Alert.alert('Error', 'Failed to add bike. Please try again.');
     } finally {
       setIsLoading(false);

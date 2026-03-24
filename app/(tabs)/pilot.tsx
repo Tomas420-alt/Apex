@@ -11,8 +11,10 @@ import {
   Platform,
   Switch,
   Image,
+  Linking,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import Purchases from 'react-native-purchases';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
@@ -29,6 +31,7 @@ import {
   Crown,
   Camera,
   FileText,
+  CreditCard,
 } from 'lucide-react-native';
 import { useAuthActions } from '@convex-dev/auth/react';
 import { useConvexAuth, useQuery, useMutation } from 'convex/react';
@@ -54,7 +57,6 @@ export default function PilotScreen() {
   const updatePreferences = useMutation(api.users.updatePreferences);
   const generateUploadUrl = useMutation(api.imageEdits.generateUploadUrl);
   const updateBikeImageFromStorage = useMutation(api.bikes.updateBikeImageFromStorage);
-  const triggerHeroGen = useMutation(api.bikes.triggerHeroGen); // TEMP: for testing
   const updateProfileImage = useMutation(api.users.updateProfileImageFromStorage);
 
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -81,7 +83,7 @@ export default function PilotScreen() {
         },
       });
     } catch (error) {
-      console.error('Failed to save preferences:', error);
+      if (__DEV__) console.error('Failed to save preferences:', error);
     }
   };
 
@@ -106,10 +108,8 @@ export default function PilotScreen() {
       });
       const { storageId } = await uploadResult.json();
       await updateBikeImageFromStorage({ bikeId, storageId });
-      // TEMP: Also trigger hero image generation for testing
-      await triggerHeroGen({ bikeId, photoStorageId: storageId });
     } catch (error) {
-      console.error('Failed to upload image:', error);
+      if (__DEV__) console.error('Failed to upload image:', error);
       Alert.alert('Error', 'Failed to update bike photo.');
     } finally {
       setUploadingBikeId(null);
@@ -138,7 +138,7 @@ export default function PilotScreen() {
       const { storageId } = await uploadResult.json();
       await updateProfileImage({ storageId });
     } catch (error) {
-      console.error('Failed to upload profile photo:', error);
+      if (__DEV__) console.error('Failed to upload profile photo:', error);
       Alert.alert('Error', 'Failed to update profile photo.');
     } finally {
       setUploadingPfp(false);
@@ -164,10 +164,23 @@ export default function PilotScreen() {
     try {
       await signOut();
     } catch (error) {
-      console.error('Sign out error:', error);
+      if (__DEV__) console.error('Sign out error:', error);
       Alert.alert('Error', 'Failed to sign out.');
     } finally {
       setIsSigningOut(false);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    try {
+      const info = await Purchases.getCustomerInfo();
+      if (info.managementURL) {
+        Linking.openURL(info.managementURL);
+      } else {
+        Linking.openURL('https://apps.apple.com/account/subscriptions');
+      }
+    } catch {
+      Linking.openURL('https://apps.apple.com/account/subscriptions');
     }
   };
 
@@ -250,7 +263,16 @@ export default function PilotScreen() {
         </View>
 
         {/* ── Subscription Banner ── */}
-        {!isPro && (
+        {isPro ? (
+          <TouchableOpacity
+            style={styles.manageSubButton}
+            onPress={handleManageSubscription}
+            activeOpacity={0.7}
+          >
+            <CreditCard size={18} color={colors.textPrimary} />
+            <Text style={styles.manageSubText}>Manage Subscription</Text>
+          </TouchableOpacity>
+        ) : (
           <TouchableOpacity
             style={styles.upgradeBanner}
             onPress={() => router.push('/membership' as any)}
@@ -468,6 +490,20 @@ const styles = StyleSheet.create({
   },
   upgradeBannerTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
   upgradeBannerSubtitle: { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
+  manageSubButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.surface2,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  manageSubText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
 
   // Section header
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },

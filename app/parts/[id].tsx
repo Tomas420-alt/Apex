@@ -198,7 +198,7 @@ export default function TaskPartsScreen() {
     try {
       await generateParts({ taskId, bikeId: bikeIdTyped });
     } catch (error) {
-      console.error('Failed to generate parts:', error);
+      if (__DEV__) console.error('Failed to generate parts:', error);
       Alert.alert('Error', 'Failed to generate parts list. Please try again.');
       setIsGenerating(false);
     }
@@ -209,7 +209,7 @@ export default function TaskPartsScreen() {
     try {
       await togglePurchased({ partId });
     } catch (error) {
-      console.error('Failed to toggle part:', error);
+      if (__DEV__) console.error('Failed to toggle part:', error);
     } finally {
       setTogglingId(null);
     }

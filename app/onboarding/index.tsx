@@ -28,7 +28,7 @@ export default function WelcomeScreen() {
           country: detectedCountry,
           units: config.units,
         });
-        console.log(`[Onboarding] Auto-detected: ${detectedCountry} → ${config.units}, ${config.currency}`);
+        if (__DEV__) console.log(`[Onboarding] Auto-detected: ${detectedCountry} → ${config.units}, ${config.currency}`);
       }
     } catch (e) {
       // Silent fallback — user can set manually later

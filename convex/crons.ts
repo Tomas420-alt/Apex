@@ -72,6 +72,9 @@ export const scheduleUpcomingReminders = internalAction({
       });
       if (!user) continue;
 
+      // Skip notifications for users without active subscription
+      if (user.subscriptionStatus !== 'active') continue;
+
       const prefs = user.notificationPreferences;
       if (!prefs) continue;
 
@@ -166,6 +169,152 @@ export const getBike = internalQuery({
   },
 });
 
+// ─── Push notification helpers ────────────────────────────────────────────────
+
+// Get all active (non-completed) maintenance tasks
+export const getAllActiveTasks = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const tasks = await ctx.db.query("maintenanceTasks").collect();
+    return tasks.filter(t => t.status !== "completed" && t.status !== "done");
+  },
+});
+
+// Check if a task has real parts (not just consumables)
+const GENERIC_CONSUMABLES = ['rag', 'rags', 'cleaner', 'lube', 'chain lube', 'wd40', 'wd-40', 'degreaser', 'towel', 'cloth', 'gloves', 'tape'];
+
+export const taskHasRealParts = internalQuery({
+  args: { taskId: v.id("maintenanceTasks") },
+  handler: async (ctx, { taskId }) => {
+    const parts = await ctx.db
+      .query("parts")
+      .withIndex("by_task", q => q.eq("taskId", taskId))
+      .collect();
+
+    if (parts.length === 0) return false;
+
+    // Check if any part is NOT a generic consumable
+    return parts.some(p => {
+      const name = p.name.toLowerCase();
+      return !GENERIC_CONSUMABLES.some(c => name.includes(c));
+    });
+  },
+});
+
+// Check if a specific reminder type has already been sent for a task
+export const hasReminderBeenSent = internalQuery({
+  args: { taskId: v.id("maintenanceTasks"), reminderType: v.string() },
+  handler: async (ctx, { taskId, reminderType }) => {
+    const reminders = await ctx.db
+      .query("reminders")
+      .withIndex("by_task", q => q.eq("taskId", taskId))
+      .collect();
+    return reminders.some(r => r.reminderType === reminderType && r.status !== "cancelled");
+  },
+});
+
+// Record that a reminder was sent
+export const recordReminderSent = internalMutation({
+  args: {
+    taskId: v.id("maintenanceTasks"),
+    userId: v.string(),
+    reminderType: v.string(),
+  },
+  handler: async (ctx, { taskId, userId, reminderType }) => {
+    await ctx.db.insert("reminders", {
+      taskId,
+      userId,
+      channel: "push",
+      scheduledAt: Date.now(),
+      sentAt: Date.now(),
+      status: "sent",
+      reminderType,
+    });
+  },
+});
+
+// ─── Push notification cron action ────────────────────────────────────────────
+
+export const schedulePushReminders = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    const tasks = await ctx.runQuery(internal.crons.getAllActiveTasks);
+    const now = Date.now();
+    const ONE_DAY = 24 * 60 * 60 * 1000;
+
+    for (const task of tasks) {
+      if (!task.dueDate) continue;
+      const dueTime = new Date(task.dueDate).getTime();
+      if (isNaN(dueTime)) continue;
+
+      const daysUntilDue = (dueTime - now) / ONE_DAY;
+
+      // Get user
+      const user = await ctx.runQuery(internal.crons.getUserById, { userId: task.userId });
+      if (!user) continue;
+      if (user.subscriptionStatus !== 'active') continue;
+      if (!user.expoPushToken) continue;
+
+      const bike = await ctx.runQuery(internal.crons.getBike, { bikeId: task.bikeId });
+      const bikeName = bike ? `${bike.make} ${bike.model}` : "your bike";
+
+      // 7 days before — parts reminder (only if task has real parts)
+      if (daysUntilDue >= 6 && daysUntilDue <= 8) {
+        const hasRealParts = await ctx.runQuery(internal.crons.taskHasRealParts, { taskId: task._id });
+        if (hasRealParts) {
+          const alreadySent = await ctx.runQuery(internal.crons.hasReminderBeenSent, {
+            taskId: task._id, reminderType: "parts_7day",
+          });
+          if (!alreadySent) {
+            await ctx.runAction(internal.notifications.sendPushNotification, {
+              pushToken: user.expoPushToken,
+              title: "Parts Reminder",
+              body: `${task.name} is due in 7 days for your ${bikeName}. Order the necessary parts now.`,
+            });
+            await ctx.runMutation(internal.crons.recordReminderSent, {
+              taskId: task._id, userId: task.userId, reminderType: "parts_7day",
+            });
+          }
+        }
+      }
+
+      // 1 day before — due tomorrow
+      if (daysUntilDue >= 0 && daysUntilDue <= 2) {
+        const alreadySent = await ctx.runQuery(internal.crons.hasReminderBeenSent, {
+          taskId: task._id, reminderType: "due_tomorrow",
+        });
+        if (!alreadySent) {
+          await ctx.runAction(internal.notifications.sendPushNotification, {
+            pushToken: user.expoPushToken,
+            title: "Due Tomorrow",
+            body: `${task.name} is due tomorrow for your ${bikeName}. Make sure you're ready.`,
+          });
+          await ctx.runMutation(internal.crons.recordReminderSent, {
+            taskId: task._id, userId: task.userId, reminderType: "due_tomorrow",
+          });
+        }
+      }
+
+      // On due date — due today
+      if (daysUntilDue >= -1 && daysUntilDue <= 1) {
+        const alreadySent = await ctx.runQuery(internal.crons.hasReminderBeenSent, {
+          taskId: task._id, reminderType: "due_today",
+        });
+        if (!alreadySent) {
+          await ctx.runAction(internal.notifications.sendPushNotification, {
+            pushToken: user.expoPushToken,
+            title: "Due Today",
+            body: `${task.name} is due today for your ${bikeName}.`,
+          });
+          await ctx.runMutation(internal.crons.recordReminderSent, {
+            taskId: task._id, userId: task.userId, reminderType: "due_today",
+          });
+        }
+      }
+    }
+  },
+});
+
 // ─── Cron schedule ───────────────────────────────────────────────────────────
 
 const crons = cronJobs();
@@ -173,7 +322,13 @@ const crons = cronJobs();
 // Run status updates every day at 6 AM UTC
 crons.cron("update task statuses", "0 6 * * *", internal.crons.updateTaskStatuses, {});
 
-// Run reminder scheduling every day at 7 AM UTC (after statuses are updated)
-crons.cron("schedule upcoming reminders", "0 7 * * *", internal.crons.scheduleUpcomingReminders, {});
+// PAUSED: SMS/email reminders — replaced by push notifications
+// crons.cron("schedule upcoming reminders", "0 7 * * *", internal.crons.scheduleUpcomingReminders, {});
+
+// Schedule push notifications daily at 9 AM UTC
+crons.cron("schedule push reminders", "0 9 * * *", internal.crons.schedulePushReminders, {});
+
+// Clean up old rate limit entries every hour (deletes entries older than 2 hours)
+crons.cron("cleanup rate limits", "0 * * * *", internal.rateLimit.cleanupAllOldEntries, {});
 
 export default crons;

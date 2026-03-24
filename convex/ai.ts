@@ -80,7 +80,8 @@ If you cannot explain exactly how an item is used DURING this task, do not inclu
 
     const textContent = response.choices[0]?.message?.content || "";
     console.log(`[AI] Parts research complete: ${textContent.length} chars`);
-    console.log(`[AI] Parts research data:\n${textContent.substring(0, 2000)}`);
+    // Raw AI response logged only in truncated form for debugging
+    console.log(`[AI] Parts research data: ${textContent.substring(0, 200)}...`);
     return textContent || "No research results available.";
   } catch (error: any) {
     console.error(`[AI] Parts web search FAILED: ${error.message}`);
@@ -460,6 +461,21 @@ export const generateMaintenancePlan = internalAction({
     ctx,
     { bikeId, userId, make, model, year, mileage, lastServiceDate, lastServiceMileage, country, ridingStyle, annualMileage, climate, storageType, inspectionData, confirmedOkItems }
   ): Promise<Id<"maintenancePlans">> => {
+    // Rate limit: max 5 per hour
+    const ONE_HOUR = 60 * 60 * 1000;
+    const recentCount = await ctx.runQuery(internal.rateLimit.checkRateLimit, {
+      userId,
+      action: "generateMaintenancePlan",
+      windowMs: ONE_HOUR,
+    });
+    if (recentCount >= 5) {
+      throw new Error("Rate limit exceeded. Please try again later.");
+    }
+    await ctx.runMutation(internal.rateLimit.recordAction, {
+      userId,
+      action: "generateMaintenancePlan",
+    });
+
     const openai = getOpenAIClient();
 
     // Step 1: Research bike specs via web search
@@ -1057,6 +1073,24 @@ export const generateHeroImage = internalAction({
     photoStorageId: v.id("_storage"),
   },
   handler: async (ctx, { bikeId, photoStorageId }) => {
+    // Rate limit: max 5 per hour per user
+    const bike = await ctx.runQuery(internal.crons.getBike, { bikeId });
+    if (bike) {
+      const ONE_HOUR = 60 * 60 * 1000;
+      const recentCount = await ctx.runQuery(internal.rateLimit.checkRateLimit, {
+        userId: bike.userId,
+        action: "generateHeroImage",
+        windowMs: ONE_HOUR,
+      });
+      if (recentCount >= 5) {
+        throw new Error("Rate limit exceeded. Please try again later.");
+      }
+      await ctx.runMutation(internal.rateLimit.recordAction, {
+        userId: bike.userId,
+        action: "generateHeroImage",
+      });
+    }
+
     const openai = getOpenAIClient();
 
     // 1. Fetch the user's uploaded bike photo from Convex storage
@@ -1112,7 +1146,7 @@ export const generateHeroImage = internalAction({
               { type: "input_image", image_url: sizingB64 },
               {
                 type: "input_text",
-                text: "Put the side view of the bike from the first image into the background of the second image. Do not change the aspect ratio of the second image. IMPORTANT: The bike must be SMALLER than in the third image — scale it to about 70% of the width of the background image, centered horizontally, so there is clearly visible empty space on BOTH the left and right sides of the bike. Both wheels must be fully visible with padding on each side. The bike should sit naturally on the ground surface. The result should look cinematic and professional, like a motorcycle showcase photo in a dark underground garage.",
+                text: "Put the bike from the first image into the background of the second image as a PERFECT 90-DEGREE SIDE VIEW. The bike must face the same direction as in the first image (if it points right, output points right). Make the bike slightly smaller than in the third image. Position the bike close to the concrete wall behind it — the tires should be on the road surface near the wall, not in the middle of the road. The bike must look exactly like the original — same color, same fairings, same exhaust, same wheels. IMPORTANT: Do NOT add, draw, or create any new white road markings or lines. The background already has one white line — keep ONLY that one. Do not duplicate it or add another one below it. Keep the background EXACTLY as-is.",
               },
             ],
           },

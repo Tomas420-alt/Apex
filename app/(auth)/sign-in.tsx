@@ -50,7 +50,7 @@ export default function SignInScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     } catch (err: any) {
-      console.error("Sign in error:", err);
+      if (__DEV__) console.error("Sign in error:", err);
       const raw = err?.message?.toLowerCase() ?? "";
       let message = "Sign in failed. Please check your credentials.";
       if (raw.includes("invalid") || raw.includes("secret") || raw.includes("credentials")) {

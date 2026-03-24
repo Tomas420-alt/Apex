@@ -47,7 +47,7 @@ export default function BikePhotoScreen() {
       setFields({ photoStorageId: storageId, photoUrl: asset.uri });
       setUploaded(true);
     } catch (error) {
-      console.error('Failed to upload photo:', error);
+      if (__DEV__) console.error('Failed to upload photo:', error);
     } finally {
       setUploading(false);
     }

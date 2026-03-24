@@ -35,6 +35,9 @@ export default function CalendarScreen() {
     bikes.length > 0 ? { startDate: calendarStartDate, endDate: calendarEndDate } : 'skip'
   );
 
+  const currentUser = useQuery(api.users.getCurrent);
+  const isSubscribed = currentUser?.subscriptionStatus === 'active';
+
   const bikeNameMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const bike of bikes) {
@@ -62,7 +65,7 @@ export default function CalendarScreen() {
         </Text>
 
         <MaintenanceCalendar
-          tasks={calendarTasks}
+          tasks={isSubscribed ? (calendarTasks ?? []) : []}
           bikeNameMap={bikeNameMap}
           currentMonth={calendarMonth}
           onMonthChange={setCalendarMonth}

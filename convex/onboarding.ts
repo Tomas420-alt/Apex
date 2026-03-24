@@ -39,6 +39,36 @@ export const save = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
+    // Trim all string fields
+    args.make = args.make.trim();
+    args.model = args.model.trim();
+    if (args.notes !== undefined) args.notes = args.notes.trim();
+    if (args.phone !== undefined) args.phone = args.phone.trim();
+    if (args.country !== undefined) args.country = args.country.trim();
+    if (args.ridingStyle !== undefined) args.ridingStyle = args.ridingStyle.trim();
+    if (args.climate !== undefined) args.climate = args.climate.trim();
+    if (args.storageType !== undefined) args.storageType = args.storageType.trim();
+    if (args.experienceLevel !== undefined) args.experienceLevel = args.experienceLevel.trim();
+    if (args.maintenanceComfort !== undefined) args.maintenanceComfort = args.maintenanceComfort.trim();
+    if (args.lastServiceDate !== undefined) args.lastServiceDate = args.lastServiceDate.trim();
+
+    // Input validation
+    if (args.make.length === 0) throw new Error("Make is required");
+    if (args.make.length > 50) throw new Error("Make name too long (max 50 characters)");
+    if (args.model.length === 0) throw new Error("Model is required");
+    if (args.model.length > 50) throw new Error("Model name too long (max 50 characters)");
+    if (args.year < 1900 || args.year > 2100) throw new Error("Invalid year (must be 1900–2100)");
+    if (args.mileage < 0 || args.mileage > 999999) throw new Error("Invalid mileage (must be 0–999999)");
+    if (args.notes !== undefined && args.notes.length > 1000) throw new Error("Notes too long (max 1000 characters)");
+    if (args.phone !== undefined && args.phone.length > 20) throw new Error("Phone number too long (max 20 characters)");
+    if (args.country !== undefined && args.country.length > 50) throw new Error("Country name too long (max 50 characters)");
+    if (args.lastServiceMileage !== undefined && (args.lastServiceMileage < 0 || args.lastServiceMileage > 999999)) {
+      throw new Error("Invalid last service mileage (must be 0–999999)");
+    }
+    if (args.annualMileage !== undefined && (args.annualMileage < 0 || args.annualMileage > 999999)) {
+      throw new Error("Invalid annual mileage (must be 0–999999)");
+    }
+
     const user = await ensureUser(ctx);
     if (!user) throw new Error("Could not create user");
 

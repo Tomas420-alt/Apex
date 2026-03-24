@@ -5,7 +5,7 @@ import Purchases, {
   CustomerInfo,
   LOG_LEVEL,
 } from 'react-native-purchases';
-import { useMutation } from 'convex/react';
+import { useMutation, useAction } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 
 const REVENUECAT_API_KEY = Platform.select({
@@ -18,28 +18,33 @@ const PRO_ENTITLEMENT = 'ApexTune Pro';
 
 let isConfigured = false;
 
-export function useRevenueCat() {
+// Pass convexUserId to identify the user in RevenueCat so webhook events
+// can map back to the correct Convex user
+export function useRevenueCat(convexUserId?: string) {
   const [isReady, setIsReady] = useState(false);
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const updateSubscription = useMutation(api.users.updateSubscription);
+  const validateAndActivate = useAction(api.subscriptions.validateAndActivateSubscription);
 
   const isPro = customerInfo?.entitlements.active[PRO_ENTITLEMENT] !== undefined;
 
-  // Sync RevenueCat state → Convex
+  // Sync RevenueCat state -> Convex
+  // Activation goes through a server-side action (validateAndActivateSubscription)
+  // so clients cannot spoof Pro status. Expiration/cancellation uses the public mutation.
   const syncToConvex = useCallback(async (info: CustomerInfo) => {
     const entitlement = info.entitlements.active[PRO_ENTITLEMENT];
     if (entitlement) {
-      await updateSubscription({
-        subscriptionStatus: 'active',
+      // Activate via server-side validated action (not the public mutation)
+      await validateAndActivate({
         subscriptionPlan: entitlement.productIdentifier.includes('yearly') ? 'annual' : 'monthly',
         subscriptionExpiresAt: entitlement.expirationDate
           ? new Date(entitlement.expirationDate).getTime()
           : undefined,
       });
     } else {
-      // Check if they had a subscription that expired
+      // Check if they had a subscription that expired — safe to set from client
       const expired = info.entitlements.all[PRO_ENTITLEMENT];
       if (expired) {
         await updateSubscription({
@@ -49,7 +54,7 @@ export function useRevenueCat() {
         });
       }
     }
-  }, [updateSubscription]);
+  }, [updateSubscription, validateAndActivate]);
 
   // Initialize RevenueCat
   useEffect(() => {
@@ -64,6 +69,12 @@ export function useRevenueCat() {
         Purchases.configure({ apiKey: REVENUECAT_API_KEY });
         isConfigured = true;
 
+        // Log in with Convex user ID so RevenueCat webhook events
+        // include the correct app_user_id for server-side validation
+        if (convexUserId) {
+          await Purchases.logIn(convexUserId);
+        }
+
         // Get current customer info
         const info = await Purchases.getCustomerInfo();
         setCustomerInfo(info);
@@ -76,7 +87,7 @@ export function useRevenueCat() {
 
         setIsReady(true);
       } catch (e) {
-        console.error('[RevenueCat] Init error:', e);
+        if (__DEV__) console.error('[RevenueCat] Init error:', e);
         setIsReady(true); // Still mark ready so UI isn't stuck
       }
     };
@@ -112,7 +123,7 @@ export function useRevenueCat() {
       if (e.userCancelled) {
         return { success: false, cancelled: true };
       }
-      console.error('[RevenueCat] Purchase error:', e);
+      if (__DEV__) console.error('[RevenueCat] Purchase error:', e);
       return { success: false, error: e.message };
     } finally {
       setIsLoading(false);
@@ -128,7 +139,7 @@ export function useRevenueCat() {
       await syncToConvex(info);
       return { success: true, isPro: info.entitlements.active[PRO_ENTITLEMENT] !== undefined };
     } catch (e: any) {
-      console.error('[RevenueCat] Restore error:', e);
+      if (__DEV__) console.error('[RevenueCat] Restore error:', e);
       return { success: false, error: e.message };
     } finally {
       setIsLoading(false);

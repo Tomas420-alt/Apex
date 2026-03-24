@@ -22,8 +22,11 @@ import type * as maintenanceTasks from "../maintenanceTasks.js";
 import type * as notifications from "../notifications.js";
 import type * as onboarding from "../onboarding.js";
 import type * as parts from "../parts.js";
+import type * as rateLimit from "../rateLimit.js";
 import type * as reminders from "../reminders.js";
+import type * as subscriptions from "../subscriptions.js";
 import type * as users from "../users.js";
+import type * as webhooks from "../webhooks.js";
 
 import type {
   ApiFromModules,
@@ -46,8 +49,11 @@ declare const fullApi: ApiFromModules<{
   notifications: typeof notifications;
   onboarding: typeof onboarding;
   parts: typeof parts;
+  rateLimit: typeof rateLimit;
   reminders: typeof reminders;
+  subscriptions: typeof subscriptions;
   users: typeof users;
+  webhooks: typeof webhooks;
 }>;
 
 /**

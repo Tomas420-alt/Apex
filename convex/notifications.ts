@@ -62,14 +62,16 @@ export const sendSMS = internalAction({
     body: v.string(),
   },
   handler: async (_ctx, args) => {
+    // PAUSED: SMS notifications disabled — using push notifications instead
+    return { sid: "paused", status: "paused" };
+
+    /* eslint-disable no-unreachable */
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
     const fromNumber = process.env.TWILIO_PHONE_NUMBER;
 
     if (!accountSid || !authToken || !fromNumber) {
-      throw new Error(
-        "Missing Twilio environment variables: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER"
-      );
+      throw new Error("SMS service is not configured");
     }
 
     const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
@@ -77,7 +79,7 @@ export const sendSMS = internalAction({
 
     const bodyParams = new URLSearchParams({
       To: args.to,
-      From: fromNumber,
+      From: fromNumber!,
       Body: args.body,
     });
 
@@ -111,10 +113,13 @@ export const sendEmail = internalAction({
     text: v.optional(v.string()),
   },
   handler: async (_ctx, args) => {
+    // PAUSED: Email notifications disabled — using push notifications instead
+    return { id: "paused" };
+
     const apiKey = process.env.RESEND_API_KEY;
 
     if (!apiKey) {
-      throw new Error("Missing environment variable: RESEND_API_KEY");
+      throw new Error("Email service is not configured");
     }
 
     const payload: Record<string, string | undefined> = {
@@ -173,7 +178,7 @@ export const sendReminder = internalAction({
           userId,
           status: "failed",
         });
-        throw new Error(`User ${userId} has no phone number on file for SMS reminder`);
+        throw new Error("No phone number on file for SMS reminder");
       }
 
       const smsBody = `Apex Reminder: "${taskName}" is due soon for your ${bikeName}. Time to order parts! Open the app to view details.`;
@@ -200,7 +205,7 @@ export const sendReminder = internalAction({
           userId,
           status: "failed",
         });
-        throw new Error(`User ${userId} has no email address on file for email reminder`);
+        throw new Error("No email address on file for email reminder");
       }
 
       const subject = `Apex: "${taskName}" is due in 1 week — order parts now`;
@@ -236,19 +241,57 @@ export const sendReminder = internalAction({
         emailId: result.id,
       });
     } else if (channel === "push") {
-      // Push notification placeholder — integrate with Expo Push Notifications when ready
-      console.log(
-        `[sendReminder] Push notification placeholder for task "${taskName}" (bike: ${bikeName}, user: ${userId})`
-      );
+      const user = await ctx.runQuery(internal.reminders.getUserById, { userId });
+      if (!user?.expoPushToken) {
+        await ctx.runMutation(internal.reminders.updateStatus, {
+          taskId, userId, status: "failed",
+        });
+        return;
+      }
+
+      await ctx.runAction(internal.notifications.sendPushNotification, {
+        pushToken: user.expoPushToken,
+        title: "Apex Reminder",
+        body: taskName,
+      });
 
       await ctx.runMutation(internal.reminders.updateStatus, {
-        taskId,
-        userId,
-        status: "sent",
+        taskId, userId, status: "sent",
       });
     } else {
-      throw new Error(`Unknown notification channel: ${channel}`);
+      throw new Error("Invalid notification channel");
     }
+  },
+});
+
+// Send a push notification via Expo's push service
+export const sendPushNotification = internalAction({
+  args: {
+    pushToken: v.string(),
+    title: v.string(),
+    body: v.string(),
+    data: v.optional(v.any()),
+  },
+  handler: async (_ctx, args) => {
+    const response = await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        to: args.pushToken,
+        title: args.title,
+        body: args.body,
+        sound: "default",
+        data: args.data ?? {},
+      }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(`Expo push error: ${JSON.stringify(result)}`);
+    }
+    return result;
   },
 });
 

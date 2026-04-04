@@ -1,32 +1,45 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { BlurView } from 'expo-blur';
 import {
-  CheckCircle,
-  Shield,
-  Zap,
-  Clock,
+  Radar,
+  ShieldCheck,
+  Crosshair,
+  Navigation,
 } from 'lucide-react-native';
 import { colors } from '@/constants/theme';
 
-function EmptyCard({ icon, title, subtitle, accentColor }: {
+function EmptyCard({ icon, title, subtitle, accentColor, statusLabel }: {
   icon: React.ReactNode;
   title: string;
   subtitle: string;
   accentColor: string;
+  statusLabel: string;
 }) {
   return (
     <View style={styles.cardOuter}>
-      <BlurView intensity={20} tint="dark" style={styles.card}>
-        <View style={[styles.iconGlow, { shadowColor: accentColor }]}>
-          <View style={[styles.iconCircle, { borderColor: `${accentColor}30` }]}>
+      <View style={styles.card}>
+        {/* Top status bar */}
+        <View style={styles.statusRow}>
+          <View style={[styles.statusDot, { backgroundColor: accentColor }]} />
+          <Text style={[styles.statusLabel, { color: accentColor }]}>{statusLabel}</Text>
+        </View>
+
+        {/* Icon + content */}
+        <View style={styles.contentRow}>
+          <View style={[styles.iconBox, { borderColor: `${accentColor}20` }]}>
             {icon}
           </View>
+          <View style={styles.textBlock}>
+            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.subtitle}>{subtitle}</Text>
+          </View>
         </View>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.subtitle}>{subtitle}</Text>
-        <View style={[styles.accentBar, { backgroundColor: accentColor }]} />
-      </BlurView>
+
+        {/* Bottom accent line */}
+        <View style={styles.accentLineTrack}>
+          <View style={[styles.accentLineFill, { backgroundColor: accentColor }]} />
+        </View>
+      </View>
     </View>
   );
 }
@@ -34,10 +47,11 @@ function EmptyCard({ icon, title, subtitle, accentColor }: {
 export function EmptyUpcoming() {
   return (
     <EmptyCard
-      icon={<Clock size={28} color={colors.orange} strokeWidth={1.5} />}
+      icon={<Radar size={22} color={colors.green} strokeWidth={1.5} />}
       title="All clear"
-      subtitle="No tasks due in the next 7 days. Ride easy."
-      accentColor={colors.orange}
+      subtitle="No tasks due in the next 7 days"
+      accentColor={colors.green}
+      statusLabel="SCANNING"
     />
   );
 }
@@ -45,10 +59,11 @@ export function EmptyUpcoming() {
 export function EmptyOverdue() {
   return (
     <EmptyCard
-      icon={<Shield size={28} color={colors.green} strokeWidth={1.5} />}
+      icon={<ShieldCheck size={22} color={colors.green} strokeWidth={1.5} />}
       title="Zero overdue"
-      subtitle="Everything's on schedule. Your bike thanks you."
+      subtitle="All systems nominal"
       accentColor={colors.green}
+      statusLabel="NOMINAL"
     />
   );
 }
@@ -56,10 +71,11 @@ export function EmptyOverdue() {
 export function EmptyCompleted() {
   return (
     <EmptyCard
-      icon={<Zap size={28} color={colors.orange} strokeWidth={1.5} />}
-      title="Nothing completed yet"
-      subtitle="Finish your first task to start tracking progress."
-      accentColor={colors.orange}
+      icon={<Crosshair size={22} color={colors.textTertiary} strokeWidth={1.5} />}
+      title="Nothing logged"
+      subtitle="Complete your first task to track progress"
+      accentColor={colors.textTertiary}
+      statusLabel="STANDBY"
     />
   );
 }
@@ -67,60 +83,78 @@ export function EmptyCompleted() {
 export function EmptyGeneral() {
   return (
     <EmptyCard
-      icon={<CheckCircle size={28} color={colors.textTertiary} strokeWidth={1.5} />}
-      title="No maintenance tasks"
-      subtitle="Generate a plan from the Plan tab to get started."
+      icon={<Navigation size={22} color={colors.textTertiary} strokeWidth={1.5} />}
+      title="No active tasks"
+      subtitle="Generate a plan to get started"
       accentColor={colors.textTertiary}
+      statusLabel="OFFLINE"
     />
   );
 }
 
 const styles = StyleSheet.create({
   cardOuter: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    backgroundColor: 'rgba(26,26,46,0.4)',
   },
   card: {
+    gap: 14,
+  },
+  statusRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 36,
-    paddingHorizontal: 32,
-    gap: 10,
+    gap: 6,
   },
-  iconGlow: {
-    marginBottom: 4,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
+  statusDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
   },
-  iconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 1.5,
+  statusLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  contentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  iconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.03)',
   },
+  textBlock: {
+    flex: 1,
+    gap: 3,
+  },
   title: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     color: colors.textPrimary,
-    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   subtitle: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 19,
+    fontSize: 12,
+    color: colors.textTertiary,
+    fontWeight: '500',
   },
-  accentBar: {
-    width: 32,
-    height: 3,
-    borderRadius: 1.5,
-    marginTop: 6,
-    opacity: 0.5,
+  accentLineTrack: {
+    width: '100%',
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    alignItems: 'center',
+  },
+  accentLineFill: {
+    width: '30%',
+    height: '100%',
+    borderRadius: 1,
+    opacity: 0.6,
   },
 });

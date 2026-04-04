@@ -17,6 +17,47 @@ export default function RevealScreen() {
   const bikeName = [data.make, data.model].filter(Boolean).join(' ') || 'Your Bike';
   const bikeYear = data.year || '';
 
+  // Compute oil change due text dynamically
+  const getOilChangeDueText = () => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+
+    if (data.lastServiceDate) {
+      const lastService = new Date(data.lastServiceDate);
+      const daysSinceService = Math.floor(
+        (now.getTime() - lastService.getTime()) / (1000 * 60 * 60 * 24)
+      );
+      // Oil change every ~6 months (182 days) or 5000km
+      // Estimate days remaining based on annual mileage
+      const dailyKm = (data.annualMileage || 5000) / 365;
+      const kmSinceService = dailyKm * daysSinceService;
+      const daysUntilKmLimit = dailyKm > 0
+        ? Math.floor((5000 - kmSinceService) / dailyKm)
+        : 182;
+      const daysUntilTimeLimit = 182 - daysSinceService;
+      const daysRemaining = Math.min(daysUntilKmLimit, daysUntilTimeLimit);
+
+      if (daysRemaining <= 0) return 'Due soon';
+      if (daysRemaining <= 14) return `Due in ${daysRemaining} days`;
+      if (daysRemaining <= 60) return `Due in ~${Math.round(daysRemaining / 7)} weeks`;
+      return `Due in ~${Math.round(daysRemaining / 30)} months`;
+    }
+
+    // No lastServiceDate — estimate from mileage and year
+    const mileage = data.mileage || 0;
+    const year = data.year ? parseInt(String(data.year), 10) : 0;
+
+    if (mileage < 5000 || (year && year >= currentYear - 1)) {
+      return 'Due in ~3 months';
+    }
+    if (mileage > 10000) {
+      return 'Due soon';
+    }
+    return 'Due in ~30 days';
+  };
+
+  const oilChangeDueText = getOilChangeDueText();
+
   return (
     <OnboardingScreen showProgress={false} title="" showBack={false}>
       <View style={styles.content}>
@@ -56,7 +97,7 @@ export default function RevealScreen() {
             </View>
             <View style={styles.taskPreviewText}>
               <Text style={styles.taskPreviewTitle}>Oil Change</Text>
-              <Text style={styles.taskPreviewDue}>Due in 12 days</Text>
+              <Text style={styles.taskPreviewDue}>{oilChangeDueText}</Text>
             </View>
           </View>
         </Animated.View>

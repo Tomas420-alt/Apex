@@ -31,7 +31,7 @@ export const listByPlan = query({
   },
 });
 
-// Query: Get all tasks for a bike (only from the active plan)
+// Query: Get all tasks for a bike (from active plan + manual tasks)
 export const listByBike = query({
   args: { bikeId: v.id("bikes") },
   handler: async (ctx, { bikeId }) => {
@@ -46,14 +46,32 @@ export const listByBike = query({
     const activePlan = plans.find(
       (p) => p.status === "active" && p.userId === userId
     );
-    if (!activePlan) return [];
 
-    const tasks = await ctx.db
+    // Get plan-based tasks if there's an active plan
+    const planTasks = activePlan
+      ? await ctx.db
+          .query("maintenanceTasks")
+          .withIndex("by_plan", (q) => q.eq("planId", activePlan._id))
+          .collect()
+      : [];
+
+    // Also get manual tasks (no planId) for this bike
+    const allBikeTasks = await ctx.db
       .query("maintenanceTasks")
-      .withIndex("by_plan", (q) => q.eq("planId", activePlan._id))
+      .withIndex("by_bike", (q) => q.eq("bikeId", bikeId))
       .collect();
+    const manualTasks = allBikeTasks.filter(
+      (t) => !t.planId && t.userId === userId
+    );
 
-    return tasks.filter((t) => t.userId === userId);
+    // Combine and deduplicate
+    const taskIds = new Set(planTasks.map((t) => t._id));
+    const combined = [...planTasks.filter((t) => t.userId === userId)];
+    for (const mt of manualTasks) {
+      if (!taskIds.has(mt._id)) combined.push(mt);
+    }
+
+    return combined;
   },
 });
 
@@ -307,14 +325,41 @@ export const addManual = mutation({
     const bike = await ctx.db.get(args.bikeId);
     if (!bike || bike.userId !== userId) throw new Error("Bike not found");
 
+    // Normalize dueDate to YYYY-MM-DD format (handles 2026/3/27, 2026-3-27, etc.)
+    let normalizedDueDate: string | undefined;
+    if (args.dueDate) {
+      const parsed = new Date(args.dueDate);
+      if (!isNaN(parsed.getTime())) {
+        const y = parsed.getFullYear();
+        const m = String(parsed.getMonth() + 1).padStart(2, "0");
+        const d = String(parsed.getDate()).padStart(2, "0");
+        normalizedDueDate = `${y}-${m}-${d}`;
+      }
+    }
+
+    // Compute initial status based on dueDate
+    let status: "pending" | "due" | "overdue" = "pending";
+    if (normalizedDueDate) {
+      const now = Date.now();
+      const dueTime = new Date(normalizedDueDate).getTime();
+      if (!isNaN(dueTime)) {
+        const timeUntilDue = dueTime - now;
+        if (timeUntilDue < 0) {
+          status = "overdue";
+        } else if (timeUntilDue <= 14 * 24 * 60 * 60 * 1000) {
+          status = "due";
+        }
+      }
+    }
+
     return await ctx.db.insert("maintenanceTasks", {
       bikeId: args.bikeId,
       userId,
       name: args.name,
       description: args.description,
       priority: args.priority,
-      status: "pending",
-      dueDate: args.dueDate,
+      status,
+      dueDate: normalizedDueDate,
       dueMileage: args.dueMileage,
       intervalKm: args.intervalKm,
       intervalMonths: args.intervalMonths,
@@ -566,91 +611,105 @@ export const listForCalendar = query({
       bikeId: string;
     }> = [];
 
+    // Helper: compute real-time status for a due date
+    const computeStatus = (dueDateStr: string) => {
+      const dueTime = new Date(dueDateStr).getTime();
+      if (isNaN(dueTime)) return "pending";
+      if (dueTime < now) return "overdue";
+      if (dueTime - now <= 7 * 86400000) return "due";
+      return "pending";
+    };
+
+    // Helper: process a task and add it (+ recurring projections) to results
+    const processTask = (task: { _id: any; name: string; priority: string; status: string; dueDate?: string; intervalMonths?: number; bikeId: any; userId: any }) => {
+      if (task.userId !== userId) return;
+      if (!task.dueDate) return;
+
+      // Add the original task if it falls in range
+      if (task.dueDate >= startDate && task.dueDate <= endDate) {
+        let computedStatus = task.status;
+        if (task.status !== "completed" && task.status !== "skipped") {
+          computedStatus = computeStatus(task.dueDate);
+        }
+
+        results.push({
+          _id: task._id,
+          name: task.name,
+          priority: task.priority,
+          status: computedStatus,
+          dueDate: task.dueDate,
+          bikeId: task.bikeId,
+        });
+      }
+
+      // Project future recurring occurrences based on intervalMonths
+      // Default to 12 months if no interval set (annual re-check)
+      const interval = task.intervalMonths && task.intervalMonths > 0
+        ? task.intervalMonths
+        : 12;
+      const isSubMonthly = interval < 1;
+      {
+        let occurrence = 1;
+        const maxOccurrences = isSubMonthly ? 60 : 24;
+        while (occurrence <= maxOccurrences) {
+          const projectedDate = addMonthsToDate(
+            task.dueDate,
+            interval * occurrence,
+            isSubMonthly,
+          );
+
+          if (projectedDate > endDate) break;
+
+          if (projectedDate >= startDate) {
+            const projectedPriority =
+              task.priority === "critical" || task.priority === "high"
+                ? "medium"
+                : task.priority;
+
+            results.push({
+              _id: `${task._id}_r${occurrence}`,
+              name: task.name,
+              priority: projectedPriority,
+              status: computeStatus(projectedDate),
+              dueDate: projectedDate,
+              bikeId: task.bikeId,
+            });
+          }
+
+          occurrence++;
+        }
+      }
+    };
+
     for (const bike of bikes) {
-      // Find the active plan for this bike
       const activePlan = allPlans.find(
         (p) => p.bikeId === bike._id && p.status === "active"
       );
-      if (!activePlan) continue;
 
-      // Get tasks for active plan only
-      const tasks = await ctx.db
-        .query("maintenanceTasks")
-        .withIndex("by_plan", (q) => q.eq("planId", activePlan._id))
-        .collect();
+      // Get plan-based tasks if there's an active plan
+      if (activePlan) {
+        const tasks = await ctx.db
+          .query("maintenanceTasks")
+          .withIndex("by_plan", (q) => q.eq("planId", activePlan._id))
+          .collect();
 
-      for (const task of tasks) {
-        if (task.userId !== userId) continue;
-        if (!task.dueDate) continue;
-
-        // Compute real-time status for the original due date
-        const computeStatus = (dueDateStr: string) => {
-          const dueTime = new Date(dueDateStr).getTime();
-          if (isNaN(dueTime)) return "pending";
-          if (dueTime < now) return "overdue";
-          if (dueTime - now <= 7 * 86400000) return "due";
-          return "pending";
-        };
-
-        // Add the original task if it falls in range
-        if (task.dueDate >= startDate && task.dueDate <= endDate) {
-          let computedStatus = task.status;
-          if (task.status !== "completed" && task.status !== "skipped") {
-            computedStatus = computeStatus(task.dueDate);
-          }
-
-          results.push({
-            _id: task._id,
-            name: task.name,
-            priority: task.priority,
-            status: computedStatus,
-            dueDate: task.dueDate,
-            bikeId: task.bikeId,
-          });
+        for (const task of tasks) {
+          processTask(task);
         }
+      }
 
-        // Project future recurring occurrences based on intervalMonths
-        // Default to 12 months if no interval set (annual re-check)
-        const interval = task.intervalMonths && task.intervalMonths > 0
-          ? task.intervalMonths
-          : 12;
-        const isSubMonthly = interval < 1;
-        {
-          let occurrence = 1;
-          // Safety limit: more occurrences for sub-monthly tasks
-          const maxOccurrences = isSubMonthly ? 60 : 24;
-          while (occurrence <= maxOccurrences) {
-            const projectedDate = addMonthsToDate(
-              task.dueDate,
-              interval * occurrence,
-              isSubMonthly, // snap sub-monthly to Saturday
-            );
+      // Also include manual tasks (no planId) for this bike
+      const allBikeTasks = await ctx.db
+        .query("maintenanceTasks")
+        .withIndex("by_bike", (q) => q.eq("bikeId", bike._id))
+        .collect();
+      const manualTasks = allBikeTasks.filter(
+        (t) => !t.planId && t.userId === userId
+      );
 
-            // Past the end of our range — stop
-            if (projectedDate > endDate) break;
-
-            // Only include if within requested range
-            if (projectedDate >= startDate) {
-              // Downgrade critical/high to medium for projected future occurrences.
-              // The original urgent task (due now) stays critical/high,
-              // but future recurrences are normal baseline maintenance.
-              const projectedPriority =
-                task.priority === "critical" || task.priority === "high"
-                  ? "medium"
-                  : task.priority;
-
-              results.push({
-                _id: `${task._id}_r${occurrence}`,
-                name: task.name,
-                priority: projectedPriority,
-                status: computeStatus(projectedDate),
-                dueDate: projectedDate,
-                bikeId: task.bikeId,
-              });
-            }
-
-            occurrence++;
-          }
+      for (const task of manualTasks) {
+        if (task.dueDate) {
+          processTask(task);
         }
       }
     }

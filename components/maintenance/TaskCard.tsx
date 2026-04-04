@@ -144,10 +144,10 @@ const styles = StyleSheet.create({
   cardOuter: {
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: '#1f2937',
     marginBottom: 12,
     overflow: 'hidden',
-    backgroundColor: 'rgba(26,26,46,0.5)',
+    backgroundColor: 'rgba(255,255,255,0.02)',
   },
   card: {
     padding: 16,
@@ -265,9 +265,9 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: 'rgba(0,229,153,0.12)',
+    backgroundColor: 'rgba(0,242,255,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(0,229,153,0.2)',
+    borderColor: 'rgba(0,242,255,0.2)',
   },
   completeButtonText: {
     fontSize: 13,

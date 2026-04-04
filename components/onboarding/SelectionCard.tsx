@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
   },
   cardSelected: {
     borderColor: colors.green,
-    backgroundColor: 'rgba(0,229,153,0.08)',
+    backgroundColor: 'rgba(0,242,255,0.08)',
   },
   iconWrapper: {
     width: 36,
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     marginRight: 14,
   },
   iconWrapperSelected: {
-    backgroundColor: 'rgba(0,229,153,0.12)',
+    backgroundColor: 'rgba(0,242,255,0.12)',
   },
   textContainer: {
     flex: 1,

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, useWindowDimensions } from 'react-native';
-import { Gauge, Camera } from 'lucide-react-native';
+import { Camera } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '@/constants/theme';
 
@@ -15,8 +15,8 @@ interface Props {
 export function MotorcycleHero({ imageUrl, heroImageUrl, bikeName, mileage, onAddPhoto }: Props) {
   // Prefer AI-generated hero image, fallback to raw upload
   const displayUrl = heroImageUrl || imageUrl;
-  const { width } = useWindowDimensions();
-  const imageHeight = width * 1.15;
+  const { width, height: screenHeight } = useWindowDimensions();
+  const imageHeight = screenHeight * 0.70;
 
   return (
     <View style={[styles.heroContainer, { width, height: imageHeight }]}>
@@ -39,16 +39,22 @@ export function MotorcycleHero({ imageUrl, heroImageUrl, bikeName, mileage, onAd
         </TouchableOpacity>
       )}
       <LinearGradient
-        colors={['transparent', colors.bg]}
-        locations={[0.45, 1]}
+        colors={[
+          'transparent',
+          'rgba(5,5,5,0.15)',
+          'rgba(5,5,5,0.45)',
+          'rgba(5,5,5,0.75)',
+          colors.bg,
+        ]}
+        locations={[0.0, 0.3, 0.55, 0.75, 0.95]}
         style={styles.gradient}
         pointerEvents="none"
       />
-      <View style={styles.overlayBottom} pointerEvents="none">
+      <View style={[styles.overlayBottom, { bottom: screenHeight * 0.13 + 4 }]} pointerEvents="none">
         <Text style={styles.bikeName}>{bikeName}</Text>
-        <View style={styles.mileageBadge}>
-          <Gauge size={16} color="#FFFFFF" />
-          <Text style={styles.mileageText}>{mileage.toLocaleString()} km</Text>
+        <View style={styles.mileageContainer}>
+          <Text style={styles.mileageNumber}>{mileage.toLocaleString()}</Text>
+          <Text style={styles.mileageLabel} adjustsFontSizeToFit numberOfLines={1}>KILOMETERS</Text>
         </View>
       </View>
     </View>
@@ -90,38 +96,50 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 0,
-    height: '60%',
+    bottom: -1,
+    height: '50%',
   },
   overlayBottom: {
     position: 'absolute',
-    bottom: 80,
-    left: 16,
-    right: 16,
+    bottom: 0,
+    left: 24,
+    right: 24,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
   },
   bikeName: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 28,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    fontStyle: 'italic',
     color: '#FFFFFF',
     flex: 1,
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
-  mileageBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
+  mileageContainer: {
+    alignItems: 'flex-end',
   },
-  mileageText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
+  mileageNumber: {
+    fontSize: 24,
+    fontWeight: '900',
+    fontStyle: 'italic',
+    transform: [{ skewX: '-4deg' }],
+    color: colors.green,
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
+  },
+  mileageLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 3,
+    color: colors.textTertiary,
+    marginTop: 1,
+    alignSelf: 'stretch',
+    textAlign: 'right',
   },
 });

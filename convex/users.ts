@@ -82,6 +82,16 @@ export const updateCountry = mutation({
 });
 
 // Update subscription status from client — only allows clearing/expiring subscriptions.
+// Update the current user's display name
+export const updateName = mutation({
+  args: { name: v.string() },
+  handler: async (ctx, { name }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    await ctx.db.patch(userId, { name });
+  },
+});
+
 // Activating a subscription must go through validateAndActivateSubscription action
 // which performs server-side validation.
 export const updateSubscription = mutation({
@@ -222,6 +232,50 @@ export const deleteByEmail = internalMutation({
     }
 
     await ctx.db.delete(user._id);
+  },
+});
+
+// Delete the current user's account and all associated data
+export const deleteMyAccount = mutation({
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const user = await ctx.db.get(userId);
+    if (!user) throw new Error("User not found");
+
+    // Delete all user data from every table with userId
+    const tables = [
+      "bikes", "inspectionItems", "maintenancePlans", "maintenanceTasks",
+      "parts", "completionHistory", "reminders", "rateLimits",
+    ] as const;
+
+    for (const table of tables) {
+      const indexName = table === "maintenanceTasks" || table === "reminders"
+        ? "by_user_and_status" as any
+        : table === "rateLimits"
+          ? "by_user_action" as any
+          : "by_user" as any;
+
+      // For tables without a simple by_user index, query all and filter
+      let docs;
+      if (table === "maintenanceTasks" || table === "reminders" || table === "rateLimits") {
+        docs = await ctx.db.query(table).collect();
+        docs = docs.filter((d: any) => d.userId === userId);
+      } else {
+        docs = await ctx.db
+          .query(table)
+          .withIndex("by_user", (q: any) => q.eq("userId", userId))
+          .collect();
+      }
+
+      for (const doc of docs) {
+        await ctx.db.delete(doc._id);
+      }
+    }
+
+    // Delete the user record itself
+    await ctx.db.delete(userId);
   },
 });
 

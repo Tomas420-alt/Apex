@@ -404,7 +404,7 @@ export default function BikeDetailScreen() {
   const updateMileage = useMutation(api.bikes.updateMileage);
   const completeTask = useMutation(api.maintenanceTasks.completeAndAdvance);
   const generatePlan = useMutation(api.bikes.generatePlan);
-  const resetForInspection = useMutation(api.inspectionMutations.resetForInspection);
+  // resetForInspection removed — now an internal mutation only
 
   const [mileageModalVisible, setMileageModalVisible] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -774,16 +774,7 @@ export default function BikeDetailScreen() {
           </TouchableOpacity>
         ) : null}
 
-        {/* TEMP: Reset for inspection testing */}
-        <TouchableOpacity
-          style={{ backgroundColor: colors.red, borderRadius: 12, padding: 14, marginTop: 16, alignItems: 'center' }}
-          onPress={async () => {
-            await resetForInspection({ bikeId });
-          }}
-          activeOpacity={0.7}
-        >
-          <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 14 }}>TEMP: Reset for Inspection</Text>
-        </TouchableOpacity>
+        {/* resetForInspection button removed — now internal only */}
       </ScrollView>
 
       {/* ── Update Mileage Modal ── */}
@@ -1099,7 +1090,7 @@ const styles = StyleSheet.create({
   },
   taskCardCompleted: {
     opacity: 0.7,
-    borderColor: 'rgba(0,229,153,0.15)',
+    borderColor: 'rgba(0,242,255,0.15)',
     backgroundColor: colors.surface1,
   },
   taskHeaderRow: {
@@ -1226,7 +1217,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: 'rgba(0,229,153,0.15)',
+    backgroundColor: 'rgba(0,242,255,0.15)',
     borderRadius: 8,
     paddingVertical: 9,
   },

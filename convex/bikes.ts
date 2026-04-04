@@ -43,6 +43,7 @@ export const add = mutation({
     year: v.number(),
     mileage: v.number(),
     imageUrl: v.optional(v.string()),
+    photoStorageId: v.optional(v.id("_storage")),
     lastServiceDate: v.optional(v.string()),
     lastServiceMileage: v.optional(v.number()),
     notes: v.optional(v.string()),
@@ -80,17 +81,36 @@ export const add = mutation({
 
     await ensureUser(ctx);
 
-    return await ctx.db.insert("bikes", {
+    // If a photo storage ID was provided, get its URL
+    let imageUrl = args.imageUrl;
+    let photoStorageId = args.photoStorageId;
+    if (photoStorageId && !imageUrl) {
+      const url = await ctx.storage.getUrl(photoStorageId);
+      if (url) imageUrl = url;
+    }
+
+    const bikeId = await ctx.db.insert("bikes", {
       userId,
       make: args.make,
       model: args.model,
       year: args.year,
       mileage: args.mileage,
-      imageUrl: args.imageUrl,
+      imageUrl,
+      photoStorageId,
       lastServiceDate: args.lastServiceDate,
       lastServiceMileage: args.lastServiceMileage,
       notes: args.notes,
     });
+
+    // Trigger hero image generation if photo was uploaded
+    if (photoStorageId) {
+      await ctx.scheduler.runAfter(0, internal.ai.generateHeroImage, {
+        bikeId,
+        photoStorageId,
+      });
+    }
+
+    return bikeId;
   },
 });
 
@@ -214,7 +234,28 @@ export const updateBikeImageFromStorage = mutation({
     const imageUrl = await ctx.storage.getUrl(storageId);
     if (!imageUrl) throw new Error("Failed to get image URL");
 
-    await ctx.db.patch(bikeId, { imageUrl });
+    await ctx.db.patch(bikeId, { imageUrl, photoStorageId: storageId });
+  },
+});
+
+// Regenerate hero image from existing bike photo
+export const regenerateHeroImage = mutation({
+  args: {
+    bikeId: v.id("bikes"),
+  },
+  handler: async (ctx, { bikeId }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const bike = await ctx.db.get(bikeId);
+    if (!bike) throw new Error("Bike not found");
+    if (bike.userId !== userId) throw new Error("Unauthorized");
+    if (!bike.photoStorageId) throw new Error("No photo uploaded for this bike. Upload a photo first.");
+
+    await ctx.scheduler.runAfter(0, internal.ai.generateHeroImage, {
+      bikeId,
+      photoStorageId: bike.photoStorageId,
+    });
   },
 });
 

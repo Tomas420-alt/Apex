@@ -8,6 +8,9 @@ export default function TabLayout() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const user = useQuery(api.users.getCurrent);
 
+  // All hooks must be called before any early returns
+  usePushNotifications();
+
   if (isLoading) {
     return null;
   }
@@ -26,11 +29,8 @@ export default function TabLayout() {
     return <Redirect href="/onboarding" />;
   }
 
-  // Register for push notifications after auth + onboarding
-  usePushNotifications();
-
   return (
-    <NativeTabs minimizeBehavior="onScrollDown" tintColor="#00E599" backgroundColor="rgba(13,13,18,0.75)" blurEffect="systemUltraThinMaterialDark">
+    <NativeTabs minimizeBehavior="onScrollDown" tintColor="#00f2ff" backgroundColor="rgba(5,5,5,0.92)" blurEffect="systemUltraThinMaterialDark">
       <NativeTabs.Trigger name="index">
         <Icon sf={{ default: 'house', selected: 'house.fill' }} />
         <Label>Home</Label>

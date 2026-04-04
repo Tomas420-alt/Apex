@@ -15,15 +15,9 @@ import { router } from 'expo-router';
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
 import {
   ArrowLeft,
-  Sparkles,
-  ShieldCheck,
-  Wrench,
-  Package,
-  Bell,
-  Check,
-  X,
-  Crown,
-  Zap,
+  Brain,
+  ShoppingCart,
+  FileText,
   RotateCcw,
 } from 'lucide-react-native';
 import { colors } from '@/constants/theme';
@@ -31,13 +25,22 @@ import { useRevenueCat } from '@/hooks/useRevenueCat';
 
 type PlanOption = 'monthly' | 'annual';
 
-const FEATURES_PRO = [
-  { icon: Sparkles, label: 'AI-generated maintenance plan', pro: true, free: false },
-  { icon: Wrench, label: 'Personalized task scheduling', pro: true, free: false },
-  { icon: Package, label: 'Parts list with buy links', pro: true, free: false },
-  { icon: ShieldCheck, label: 'Bike inspection checklist', pro: true, free: false },
-  { icon: Bell, label: 'Smart maintenance reminders', pro: true, free: true },
-  { icon: Zap, label: 'Manual task tracking', pro: true, free: true },
+const BENEFITS = [
+  {
+    icon: Brain,
+    title: 'AI Maintenance Engine',
+    subtitle: 'Dynamic plans for your riding style',
+  },
+  {
+    icon: ShoppingCart,
+    title: 'Smart Parts Procurement',
+    subtitle: 'Direct buy links for your exact model',
+  },
+  {
+    icon: FileText,
+    title: 'Export Service Passport',
+    subtitle: 'Verified history for resale',
+  },
 ];
 
 export default function MembershipScreen() {
@@ -58,6 +61,8 @@ export default function MembershipScreen() {
 
     const result = await purchase(pkg);
     if (result.success) {
+      // Brief delay to let subscription status sync to Convex
+      await new Promise(resolve => setTimeout(resolve, 1500));
       router.back();
     } else if (!result.cancelled) {
       Alert.alert('Purchase Failed', result.error ?? 'Something went wrong. Please try again.');
@@ -76,10 +81,6 @@ export default function MembershipScreen() {
     } else {
       Alert.alert('Restore Failed', result.error ?? 'Something went wrong. Please try again.');
     }
-  };
-
-  const handleFreePlan = () => {
-    router.back();
   };
 
   // Show localized prices from RevenueCat if available
@@ -111,51 +112,26 @@ export default function MembershipScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero */}
+        {/* Hero Title */}
         <Animated.View entering={FadeInUp.delay(100).duration(500)} style={styles.hero}>
-          <View style={styles.crownBadge}>
-            <Crown size={32} color="#FFD700" />
-          </View>
-          <Text style={styles.heroTitle}>Unlock Your{'\n'}Maintenance AI</Text>
-          <Text style={styles.heroSubtitle}>
-            Get a personalized maintenance plan, inspection checklist, and parts list — all powered by AI and tailored to your exact bike.
+          <Text style={styles.heroTitle}>
+            UNLEASH THE{'\n'}
+            <Text style={styles.heroTitleCyan}>FULL MACHINE</Text>
           </Text>
         </Animated.View>
 
-        {/* Feature comparison */}
-        <Animated.View entering={FadeInUp.delay(200).duration(500)} style={styles.featureCard}>
-          {/* Column headers */}
-          <View style={styles.featureHeaderRow}>
-            <Text style={styles.featureHeaderLabel}>What you get</Text>
-            <View style={styles.featureHeaderBadges}>
-              <Text style={styles.featureHeaderFree}>Free</Text>
-              <View style={styles.featureHeaderProBadge}>
-                <Text style={styles.featureHeaderPro}>Pro</Text>
-              </View>
-            </View>
-          </View>
-
-          {FEATURES_PRO.map((feature, index) => {
-            const Icon = feature.icon;
+        {/* Benefits */}
+        <Animated.View entering={FadeInUp.delay(200).duration(500)} style={styles.benefitsSection}>
+          {BENEFITS.map((benefit, index) => {
+            const Icon = benefit.icon;
             return (
-              <View
-                key={index}
-                style={[
-                  styles.featureRow,
-                  index === FEATURES_PRO.length - 1 && { borderBottomWidth: 0 },
-                ]}
-              >
-                <View style={styles.featureLeft}>
-                  <Icon size={18} color={colors.green} />
-                  <Text style={styles.featureLabel}>{feature.label}</Text>
+              <View key={index} style={styles.benefitRow}>
+                <View style={styles.benefitIconWrap}>
+                  <Icon size={22} color={colors.green} />
                 </View>
-                <View style={styles.featureChecks}>
-                  {feature.free ? (
-                    <Check size={16} color={colors.textSecondary} />
-                  ) : (
-                    <X size={16} color={colors.textTertiary} />
-                  )}
-                  <Check size={16} color={colors.green} />
+                <View style={styles.benefitText}>
+                  <Text style={styles.benefitTitle}>{benefit.title}</Text>
+                  <Text style={styles.benefitSubtitle}>{benefit.subtitle}</Text>
                 </View>
               </View>
             );
@@ -164,41 +140,43 @@ export default function MembershipScreen() {
 
         {/* Plan selection */}
         <Animated.View entering={FadeInUp.delay(300).duration(500)} style={styles.planSection}>
-          <Text style={styles.planSectionTitle}>Choose your plan</Text>
-
-          {/* Annual plan */}
+          {/* Annual plan — cyan */}
           <TouchableOpacity
             style={[
               styles.planCard,
-              selectedPlan === 'annual' && styles.planCardSelected,
+              styles.planCardAnnual,
+              selectedPlan === 'annual' && styles.planCardAnnualSelected,
             ]}
             onPress={() => setSelectedPlan('annual')}
             activeOpacity={0.8}
           >
             <View style={styles.planCardTop}>
-              <View style={styles.planRadio}>
-                {selectedPlan === 'annual' && <View style={styles.planRadioInner} />}
+              <View style={[styles.planRadio, styles.planRadioAnnual]}>
+                {selectedPlan === 'annual' && <View style={styles.planRadioInnerAnnual} />}
               </View>
               <View style={styles.planInfo}>
                 <View style={styles.planNameRow}>
-                  <Text style={styles.planName}>Annual</Text>
+                  <Text style={[styles.planName, styles.planNameAnnual]}>Annual</Text>
                   <View style={styles.bestValueBadge}>
-                    <Text style={styles.bestValueText}>Save 50%</Text>
+                    <Text style={styles.bestValueText}>SAVE 50%</Text>
                   </View>
                 </View>
-                <Text style={styles.planBreakdown}>
+                <Text style={styles.planBreakdownAnnual}>
                   Just {annualMonthly} billed annually
                 </Text>
               </View>
-              <Text style={styles.planPrice}>{annualPrice}<Text style={styles.planPricePeriod}>/yr</Text></Text>
+              <Text style={[styles.planPrice, styles.planPriceAnnual]}>
+                {annualPrice}<Text style={styles.planPricePeriodAnnual}>/yr</Text>
+              </Text>
             </View>
           </TouchableOpacity>
 
-          {/* Monthly plan */}
+          {/* Monthly plan — dark */}
           <TouchableOpacity
             style={[
               styles.planCard,
-              selectedPlan === 'monthly' && styles.planCardSelected,
+              styles.planCardMonthly,
+              selectedPlan === 'monthly' && styles.planCardMonthlySelected,
             ]}
             onPress={() => setSelectedPlan('monthly')}
             activeOpacity={0.8}
@@ -215,13 +193,6 @@ export default function MembershipScreen() {
             </View>
           </TouchableOpacity>
         </Animated.View>
-
-        {/* Social proof */}
-        <Animated.View entering={FadeInUp.delay(400).duration(500)} style={styles.socialProof}>
-          <Text style={styles.socialProofText}>
-            12,000+ riders trust Apex to keep their bikes in peak condition
-          </Text>
-        </Animated.View>
       </ScrollView>
 
       {/* Sticky CTA */}
@@ -235,25 +206,15 @@ export default function MembershipScreen() {
           {isLoading ? (
             <ActivityIndicator size="small" color="#000000" />
           ) : (
-            <>
-              <Sparkles size={20} color="#000000" />
-              <Text style={styles.ctaText}>
-                Upgrade to Pro
-              </Text>
-            </>
+            <Text style={styles.ctaText}>UPGRADE TO PRO</Text>
           )}
         </TouchableOpacity>
         <Text style={styles.ctaDisclaimer}>
-          Cancel anytime. Subscription renews automatically.
+          Auto-renews. Cancel anytime.{'\n'}Subscription renews unless cancelled at least 24hrs before period end.
         </Text>
-        <View style={styles.ctaLinks}>
-          <TouchableOpacity onPress={handleRestore} activeOpacity={0.7} disabled={isLoading}>
-            <Text style={styles.restoreLink}>Restore Purchases</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleFreePlan} activeOpacity={0.7}>
-            <Text style={styles.freePlanLink}>Continue with free plan</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={handleRestore} activeOpacity={0.7} disabled={isLoading}>
+          <Text style={styles.restoreLink}>Restore Purchases</Text>
+        </TouchableOpacity>
       </Animated.View>
     </SafeAreaView>
   );
@@ -294,131 +255,81 @@ const styles = StyleSheet.create({
 
   // Hero
   hero: {
-    alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 28,
-  },
-  crownBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,215,0,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
+    paddingTop: 16,
+    paddingBottom: 32,
   },
   heroTitle: {
-    fontSize: 28,
+    fontSize: 34,
     fontWeight: '800',
+    fontStyle: 'italic',
     color: colors.textPrimary,
-    textAlign: 'center',
-    lineHeight: 34,
-    letterSpacing: -0.5,
-    marginBottom: 12,
+    textTransform: 'uppercase',
+    lineHeight: 42,
+    letterSpacing: 1,
   },
-  heroSubtitle: {
-    fontSize: 15,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-    paddingHorizontal: 8,
-  },
-
-  // Feature comparison card
-  featureCard: {
-    backgroundColor: colors.surface1,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
-    marginBottom: 24,
-  },
-  featureHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  featureHeaderLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  featureHeaderBadges: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  featureHeaderFree: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    width: 32,
-    textAlign: 'center',
-  },
-  featureHeaderProBadge: {
-    backgroundColor: 'rgba(0,229,153,0.15)',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  featureHeaderPro: {
-    fontSize: 12,
-    fontWeight: '700',
+  heroTitleCyan: {
     color: colors.green,
   },
-  featureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 11,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.03)',
+
+  // Benefits
+  benefitsSection: {
+    marginBottom: 28,
+    gap: 20,
   },
-  featureLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  featureLabel: {
-    fontSize: 14,
-    color: colors.textPrimary,
-    fontWeight: '500',
-    flex: 1,
-  },
-  featureChecks: {
+  benefitRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
-    width: 80,
-    justifyContent: 'flex-end',
+  },
+  benefitIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,242,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  benefitText: {
+    flex: 1,
+  },
+  benefitTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  benefitSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
 
   // Plan selection
   planSection: {
-    marginBottom: 16,
     gap: 10,
+    marginBottom: 16,
   },
-  planSectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 4,
-  },
+
+  // Annual plan card — cyan bg
   planCard: {
-    backgroundColor: colors.surface1,
     borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: colors.border,
     padding: 16,
   },
-  planCardSelected: {
-    borderColor: colors.green,
-    backgroundColor: 'rgba(0,229,153,0.06)',
+  planCardAnnual: {
+    backgroundColor: colors.green,
+    ...(Platform.OS === 'web'
+      ? { boxShadow: '0 0 15px rgba(0,242,255,0.3)' }
+      : {}),
+  },
+  planCardAnnualSelected: {
+    // glow is always on for annual
+  },
+  planCardMonthly: {
+    backgroundColor: colors.surface1,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  planCardMonthlySelected: {
+    borderColor: colors.textSecondary,
   },
   planCardTop: {
     flexDirection: 'row',
@@ -434,11 +345,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
+  planRadioAnnual: {
+    borderColor: 'rgba(0,0,0,0.3)',
+  },
   planRadioInner: {
     width: 12,
     height: 12,
     borderRadius: 6,
     backgroundColor: colors.green,
+  },
+  planRadioInnerAnnual: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#000000',
   },
   planInfo: {
     flex: 1,
@@ -453,8 +373,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.textPrimary,
   },
+  planNameAnnual: {
+    color: '#000000',
+  },
   bestValueBadge: {
-    backgroundColor: 'rgba(255,215,0,0.15)',
+    backgroundColor: 'rgba(0,0,0,0.2)',
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -462,11 +385,17 @@ const styles = StyleSheet.create({
   bestValueText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#FFD700',
+    color: '#000000',
+    letterSpacing: 0.5,
   },
   planBreakdown: {
     fontSize: 13,
     color: colors.textSecondary,
+    marginTop: 2,
+  },
+  planBreakdownAnnual: {
+    fontSize: 13,
+    color: 'rgba(0,0,0,0.6)',
     marginTop: 2,
   },
   planPrice: {
@@ -474,22 +403,18 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.textPrimary,
   },
+  planPriceAnnual: {
+    color: '#000000',
+  },
   planPricePeriod: {
     fontSize: 14,
     fontWeight: '500',
     color: colors.textSecondary,
   },
-
-  // Social proof
-  socialProof: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  socialProofText: {
-    fontSize: 13,
-    color: colors.textTertiary,
-    textAlign: 'center',
-    fontStyle: 'italic',
+  planPricePeriodAnnual: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: 'rgba(0,0,0,0.5)',
   },
 
   // CTA
@@ -508,40 +433,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    backgroundColor: colors.green,
+    backgroundColor: '#FFFFFF',
     borderRadius: 14,
     paddingVertical: 16,
     width: '100%',
   },
   ctaText: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
     color: '#000000',
+    letterSpacing: 2,
   },
   ctaDisclaimer: {
-    fontSize: 12,
+    fontSize: 10,
     color: colors.textTertiary,
     textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
   },
   ctaButtonDisabled: {
     opacity: 0.7,
-  },
-  ctaLinks: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 20,
   },
   restoreLink: {
     fontSize: 14,
     color: colors.textTertiary,
     fontWeight: '500',
-    paddingVertical: 4,
-  },
-  freePlanLink: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
     paddingVertical: 4,
   },
 });

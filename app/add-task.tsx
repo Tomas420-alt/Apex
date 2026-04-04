@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   bikeChipActive: {
-    backgroundColor: 'rgba(0,229,153,0.15)',
+    backgroundColor: 'rgba(0,242,255,0.15)',
     borderColor: colors.green,
   },
   bikeChipText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },

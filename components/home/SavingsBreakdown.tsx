@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { TrendingUp, Wrench, DollarSign, Calendar } from 'lucide-react-native';
 import { colors } from '@/constants/theme';
 
@@ -21,11 +20,13 @@ function Row({ label, value, color, icon }: {
 }) {
   return (
     <View style={styles.row}>
-      <View style={styles.rowLeft}>
+      <View style={styles.iconBox}>
         {icon}
-        <Text style={styles.rowLabel}>{label}</Text>
       </View>
-      <Text style={[styles.rowValue, { color }]}>{value}</Text>
+      <View style={styles.rowTextBlock}>
+        <Text style={styles.rowLabel}>{label}</Text>
+        <Text style={[styles.rowValue, { color }]}>{value}</Text>
+      </View>
     </View>
   );
 }
@@ -39,24 +40,21 @@ export function SavingsBreakdown({
   currency,
 }: SavingsBreakdownProps) {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Savings Breakdown</Text>
-      <Text style={styles.subtitle}>{new Date().getFullYear()} year-to-date</Text>
-
-      <View style={styles.cardOuter}>
-        <BlurView intensity={25} tint="dark" style={styles.card}>
+    <View style={styles.card}>
+      {/* Rows */}
+      <View style={styles.rowsContainer}>
           <Row
-            icon={<TrendingUp size={14} color={colors.green} strokeWidth={2} />}
+            icon={<TrendingUp size={14} color="#22c55e" strokeWidth={2} />}
             label="Labor saved so far"
             value={`${currency}${Math.round(savedThisYear)}`}
-            color={colors.green}
+            color="#22c55e"
           />
           <View style={styles.divider} />
           <Row
-            icon={<Calendar size={14} color={colors.green} strokeWidth={2} />}
+            icon={<Calendar size={14} color="#22c55e" strokeWidth={2} />}
             label="Projected savings by year end"
             value={`${currency}${Math.round(projectedSavings)}`}
-            color={colors.green}
+            color="#22c55e"
           />
           <View style={styles.divider} />
           <Row
@@ -79,61 +77,89 @@ export function SavingsBreakdown({
             value={`${currency}${Math.round(mechanicCostThisYear)}`}
             color={colors.red}
           />
-        </BlurView>
+        </View>
+
+      {/* Bottom accent line */}
+      <View style={styles.accentLineTrack}>
+        <View style={styles.accentLineFill} />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    gap: 8,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  subtitle: {
-    fontSize: 12,
-    color: colors.textTertiary,
-    marginBottom: 4,
-  },
   cardOuter: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    overflow: 'hidden',
-    backgroundColor: 'rgba(26,26,46,0.5)',
   },
   card: {
-    padding: 16,
+    gap: 8,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statusDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+  },
+  statusLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  rowsContainer: {
     gap: 0,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: 6,
+    gap: 10,
   },
-  rowLeft: {
+  iconBox: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
+  rowTextBlock: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    flex: 1,
+    justifyContent: 'space-between',
   },
   rowLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
-    color: colors.textSecondary,
+    color: colors.textTertiary,
     flex: 1,
   },
   rowValue: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  accentLineTrack: {
+    width: '100%',
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    alignItems: 'center',
+  },
+  accentLineFill: {
+    width: '30%',
+    height: '100%',
+    borderRadius: 1,
+    backgroundColor: '#22c55e',
+    opacity: 0.6,
   },
 });

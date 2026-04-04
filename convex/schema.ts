@@ -37,6 +37,7 @@ export default defineSchema({
     year: v.number(),
     mileage: v.number(),
     imageUrl: v.optional(v.string()),
+    photoStorageId: v.optional(v.id("_storage")),
     heroImageUrl: v.optional(v.string()),
     lastServiceDate: v.optional(v.string()),
     lastServiceMileage: v.optional(v.number()),

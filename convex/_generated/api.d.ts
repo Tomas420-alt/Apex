@@ -10,10 +10,10 @@
 
 import type * as ai from "../ai.js";
 import type * as auth from "../auth.js";
+import type * as authHelpers from "../authHelpers.js";
 import type * as bikes from "../bikes.js";
 import type * as crons from "../crons.js";
 import type * as http from "../http.js";
-import type * as imageEditActions from "../imageEditActions.js";
 import type * as imageEdits from "../imageEdits.js";
 import type * as inspection from "../inspection.js";
 import type * as inspectionMutations from "../inspectionMutations.js";
@@ -37,10 +37,10 @@ import type {
 declare const fullApi: ApiFromModules<{
   ai: typeof ai;
   auth: typeof auth;
+  authHelpers: typeof authHelpers;
   bikes: typeof bikes;
   crons: typeof crons;
   http: typeof http;
-  imageEditActions: typeof imageEditActions;
   imageEdits: typeof imageEdits;
   inspection: typeof inspection;
   inspectionMutations: typeof inspectionMutations;

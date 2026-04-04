@@ -1082,7 +1082,7 @@ export const generateHeroImage = internalAction({
         action: "generateHeroImage",
         windowMs: ONE_HOUR,
       });
-      if (recentCount >= 5) {
+      if (recentCount >= 50) {
         throw new Error("Rate limit exceeded. Please try again later.");
       }
       await ctx.runMutation(internal.rateLimit.recordAction, {
@@ -1146,12 +1146,12 @@ export const generateHeroImage = internalAction({
               { type: "input_image", image_url: sizingB64 },
               {
                 type: "input_text",
-                text: "Put the bike from the first image into the background of the second image as a PERFECT 90-DEGREE SIDE VIEW. The bike must face the same direction as in the first image (if it points right, output points right). Make the bike slightly smaller than in the third image. Position the bike close to the concrete wall behind it — the tires should be on the road surface near the wall, not in the middle of the road. The bike must look exactly like the original — same color, same fairings, same exhaust, same wheels. IMPORTANT: Do NOT add, draw, or create any new white road markings or lines. The background already has one white line — keep ONLY that one. Do not duplicate it or add another one below it. Keep the background EXACTLY as-is.",
+                text: "Generate a TALL PORTRAIT image (2:3 aspect ratio). Put the bike from the first image into the scene from the second image as a PERFECT 90-DEGREE SIDE VIEW. The bike must face the same direction as in the first image (if it points right, output points right). Make the bike LARGE — it should fill approximately 60-70% of the frame width. Position the bike in the CENTER of the frame vertically, not pushed to the bottom. The bike's wheels should be in the lower third, but the body of the bike should dominate the middle of the image. DO NOT leave large empty space above the bike. The background should be dark, slightly out of focus, with the scene from the second image. The bike must look exactly like the original — same color, same fairings, same exhaust, same wheels. Match the lighting and shadows of the background scene. Dark moody atmosphere, dramatic lighting on the bike, edges of the image fading to dark/black.",
               },
             ],
           },
         ],
-        tools: [{ type: "image_generation", size: "1536x1024" }],
+        tools: [{ type: "image_generation", size: "1024x1536" }],
       });
 
       // Find the generated image in the output

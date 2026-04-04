@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
+import { Text, TouchableOpacity, StyleSheet, ViewStyle, Platform } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -81,6 +81,9 @@ const styles = StyleSheet.create({
   },
   primary: {
     backgroundColor: colors.green,
+    ...(Platform.OS === 'web'
+      ? { boxShadow: '0 0 15px rgba(0,242,255,0.3)' }
+      : {}),
   },
   secondary: {
     backgroundColor: 'transparent',

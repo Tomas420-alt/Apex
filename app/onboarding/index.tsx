@@ -37,7 +37,7 @@ export default function WelcomeScreen() {
 
   return (
     <OnboardingScreen
-      title="Your bike deserves better"
+      title="YOUR BIKE DESERVES BETTER"
       subtitle="Join 12,000+ riders who never miss a service"
       showProgress={false}
       showBack={false}
@@ -88,11 +88,11 @@ const styles = StyleSheet.create({
   },
   pill: {
     borderWidth: 1.5,
-    borderColor: 'rgba(0,229,153,0.3)',
+    borderColor: 'rgba(0,242,255,0.3)',
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 7,
-    backgroundColor: 'rgba(0,229,153,0.06)',
+    backgroundColor: 'rgba(0,242,255,0.06)',
   },
   pillText: {
     fontSize: 13,

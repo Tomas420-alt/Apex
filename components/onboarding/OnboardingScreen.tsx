@@ -151,10 +151,11 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    fontWeight: '700',
+    fontWeight: '800',
+    fontStyle: 'italic',
     color: colors.textPrimary,
     lineHeight: 40,
-    letterSpacing: -0.5,
+    letterSpacing: 0.5,
     marginBottom: 8,
   },
   subtitle: {

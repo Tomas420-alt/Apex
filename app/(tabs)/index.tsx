@@ -15,6 +15,7 @@ import {
   NativeScrollEvent,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
@@ -29,6 +30,12 @@ import { CompletedSection } from '../../components/maintenance/CompletedSection'
 import { SavingsBreakdown } from '../../components/home/SavingsBreakdown';
 import { EmptyUpcoming, EmptyOverdue, EmptyCompleted, EmptyGeneral } from '../../components/home/EmptyStates';
 import { getCurrencySymbol, getCurrencyIconName } from '../../utils/currency';
+
+/** Show just the model if make+model exceeds 11 chars */
+function getDisplayBikeName(make: string, model: string): string {
+  const full = `${make} ${model}`;
+  return full.length > 11 ? model : full;
+}
 
 interface BikeDoc {
   _id: Id<'bikes'>;
@@ -135,7 +142,7 @@ export default function HomeScreen() {
   const yearlyStats = bikes.length > 1 ? yearlyStatsBike : yearlyStatsAll;
 
   const heroFlatListRef = useRef<FlatList>(null);
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
   const onHeroScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetX = e.nativeEvent.contentOffset.x;
@@ -148,7 +155,7 @@ export default function HomeScreen() {
   const bikeNameMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const bike of bikes) {
-      map.set(bike._id, `${bike.make} ${bike.model}`);
+      map.set(bike._id, getDisplayBikeName(bike.make, bike.model));
     }
     return map;
   }, [bikes]);
@@ -198,16 +205,15 @@ export default function HomeScreen() {
 
       {bikes.length === 0 ? (
         <SafeAreaView style={{ flex: 1 }}>
-          <Text style={styles.screenTitle}>Garage</Text>
+          <Text style={styles.screenTitle}>
+            APEX<Text style={{ color: colors.green }}>TUNE</Text>
+          </Text>
           <EmptyGarage onAdd={() => router.push('/add-bike' as any)} />
         </SafeAreaView>
       ) : (
-        <ScrollView
-          contentContainerStyle={[styles.scrollContent, { paddingTop: 0 }]}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Swipeable Hero — swipe left/right to switch bikes */}
-          <View style={styles.heroWrapper}>
+        <View style={{ flex: 1 }}>
+          {/* Hero image — absolute positioned behind everything */}
+          <View style={[styles.heroWrapper, { height: screenHeight * 0.70 }]}>
             <FlatList
               ref={heroFlatListRef}
               data={bikesOrdered}
@@ -223,17 +229,22 @@ export default function HomeScreen() {
                   <MotorcycleHero
                     imageUrl={item.imageUrl}
                     heroImageUrl={item.heroImageUrl}
-                    bikeName={`${item.year} ${item.make} ${item.model}`}
+                    bikeName={getDisplayBikeName(item.make, item.model)}
                     mileage={item.mileage ?? 0}
                     onAddPhoto={() => handleAddBikePhoto(item._id)}
                   />
                 </View>
               )}
             />
-            {/* Garage title + page dots overlaying the hero */}
-            <Text style={[styles.heroTitle, { top: insets.top + 8 }]}>Garage</Text>
+            {/* APEXTUNE logo — fixed, doesn't scroll */}
+            <View style={[styles.logoContainer, { top: insets.top + 8 }]} pointerEvents="none">
+              <Text style={styles.logoText}>
+                APEX<Text style={{ color: colors.green }}>TUNE</Text>
+              </Text>
+            </View>
+            {/* Page dots overlaying the hero */}
             {bikesOrdered.length > 1 && (
-              <View style={[styles.pageDots, { top: insets.top + 30 }]}>
+              <View style={[styles.pageDots, { top: insets.top + 16 }]}>
                 {bikesOrdered.map((_, i) => (
                   <View key={i} style={[styles.pageDot, i === activeBikeIndex && styles.pageDotActive]} />
                 ))}
@@ -242,119 +253,113 @@ export default function HomeScreen() {
           </View>
 
           {/* ── Maintenance Dashboard ── */}
-          <View style={styles.dashboardContent}>
+          <View style={[styles.dashboardContent, { marginTop: screenHeight * 0.57 + 11 }]}>
             {/* Summary Cards — filtered by active bike */}
             {!isLoading && (
               <SummaryCards
-                overdueCount={isSubscribed ? filteredOverdue.length : 0}
-                dueCount={isSubscribed ? filteredAllTasks.length : 0}
-                completedCount={isSubscribed ? filteredCompletedCount : 0}
+                overdueCount={filteredOverdue.length}
+                dueCount={filteredAllTasks.length}
+                completedCount={filteredCompletedCount}
                 totalSavings={isSubscribed ? filteredSavings : 0}
                 currency={currency}
                 currencyIconName={currencyIconName}
-                completedProgress={isSubscribed && yearlyStats ? (yearlyStats.totalThisYear > 0 ? yearlyStats.completedThisYear / yearlyStats.totalThisYear : 0) : undefined}
+                completedProgress={yearlyStats ? (yearlyStats.totalThisYear > 0 ? yearlyStats.completedThisYear / yearlyStats.totalThisYear : 0) : undefined}
                 savingsProgress={isSubscribed && yearlyStats ? (yearlyStats.projectedSavings > 0 ? yearlyStats.savedThisYear / yearlyStats.projectedSavings : 0) : undefined}
                 activeTab={activeMetricTab}
                 onTabPress={setActiveMetricTab}
               />
             )}
 
-            {/* ── Content based on active metric tab ── */}
-
-            {/* Upcoming Tasks (default) */}
-            {activeMetricTab === 'upcoming' && (
-              <>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Upcoming Tasks</Text>
-                </View>
-                <View style={styles.taskList}>
+            {/* ── Card content ── */}
+            <View style={styles.cardContainerOuter}>
+            <BlurView intensity={15} tint="dark" style={styles.cardContainerBlur}>
+              {/* Upcoming Tasks (default) */}
+              {activeMetricTab === 'upcoming' && (
+                <>
                   {isLoading ? (
                     <View style={styles.loadingContainer}>
                       <ActivityIndicator size="large" color={colors.green} />
                     </View>
-                  ) : !isSubscribed || filteredTasks.filter((t) => t.status === 'due').length === 0 ? (
+                  ) : filteredTasks.filter((t) => t.status === 'due').length === 0 ? (
                     <EmptyUpcoming />
                   ) : (
-                    filteredTasks.filter((t) => t.status === 'due').map((task) => (
-                      <TaskCard
-                        key={task._id}
-                        task={task}
-                        bikeName={bikeNameMap.get(task.bikeId) ?? 'Unknown Bike'}
-                        onPress={() => router.push(`/bike/${task.bikeId}?taskId=${task._id}` as any)}
-                        onComplete={(id) => setTaskToComplete({ id, name: task.name })}
-                        isCompleting={completingIds.has(task._id)}
-                        currency={currency}
-                      />
-                    ))
+                    <ScrollView showsVerticalScrollIndicator={false} style={styles.cardScroll} nestedScrollEnabled>
+                      {filteredTasks.filter((t) => t.status === 'due').map((task) => (
+                        <TaskCard
+                          key={task._id}
+                          task={task}
+                          bikeName={bikeNameMap.get(task.bikeId) ?? 'Unknown Bike'}
+                          onPress={() => router.push('/(tabs)/plan' as any)}
+                          onComplete={(id) => setTaskToComplete({ id, name: task.name })}
+                          isCompleting={completingIds.has(task._id)}
+                          currency={currency}
+                        />
+                      ))}
+                    </ScrollView>
                   )}
-                </View>
-              </>
-            )}
+                </>
+              )}
 
-            {/* Overdue Tasks */}
-            {activeMetricTab === 'overdue' && (
-              <>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Overdue Tasks</Text>
-                </View>
-                <View style={styles.taskList}>
-                  {!isSubscribed || filteredOverdue.length === 0 ? (
+              {/* Overdue Tasks */}
+              {activeMetricTab === 'overdue' && (
+                <>
+                  {filteredOverdue.length === 0 ? (
                     <EmptyOverdue />
                   ) : (
-                    filteredOverdue.map((task) => (
-                      <TaskCard
-                        key={task._id}
-                        task={task}
-                        bikeName={bikeNameMap.get(task.bikeId) ?? 'Unknown Bike'}
-                        onPress={() => router.push(`/bike/${task.bikeId}?taskId=${task._id}` as any)}
-                        onComplete={(id) => setTaskToComplete({ id, name: task.name })}
-                        isCompleting={completingIds.has(task._id)}
-                        currency={currency}
-                      />
-                    ))
+                    <ScrollView showsVerticalScrollIndicator={false} style={styles.cardScroll} nestedScrollEnabled>
+                      {filteredOverdue.map((task) => (
+                        <TaskCard
+                          key={task._id}
+                          task={task}
+                          bikeName={bikeNameMap.get(task.bikeId) ?? 'Unknown Bike'}
+                          onPress={() => router.push('/(tabs)/plan' as any)}
+                          onComplete={(id) => setTaskToComplete({ id, name: task.name })}
+                          isCompleting={completingIds.has(task._id)}
+                          currency={currency}
+                        />
+                      ))}
+                    </ScrollView>
                   )}
-                </View>
-              </>
-            )}
+                </>
+              )}
 
-            {/* Completed Tasks */}
-            {activeMetricTab === 'done' && (
-              <>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Completed Tasks</Text>
-                </View>
-                <View style={styles.taskList}>
-                  {!isSubscribed || filteredCompleted.length === 0 ? (
+              {/* Completed Tasks */}
+              {activeMetricTab === 'done' && (
+                <>
+                  {filteredCompleted.length === 0 ? (
                     <EmptyCompleted />
                   ) : (
-                    <CompletedSection
-                      tasks={filteredCompleted.map((t) => ({
-                        _id: t._id,
-                        name: t.name,
-                        completedAt: t.completedAt,
-                        estimatedLaborCostUsd: t.estimatedLaborCostUsd,
-                        bikeName: bikeNameMap.get(t.bikeId) ?? 'Unknown Bike',
-                      }))}
-                      currency={currency}
-                    />
+                    <ScrollView showsVerticalScrollIndicator={false} style={styles.cardScroll} nestedScrollEnabled>
+                      <CompletedSection
+                        tasks={filteredCompleted.map((t) => ({
+                          _id: t._id,
+                          name: t.name,
+                          completedAt: t.completedAt,
+                          estimatedLaborCostUsd: t.estimatedLaborCostUsd,
+                          bikeName: bikeNameMap.get(t.bikeId) ?? 'Unknown Bike',
+                        }))}
+                        currency={currency}
+                      />
+                    </ScrollView>
                   )}
-                </View>
-              </>
-            )}
+                </>
+              )}
 
-            {/* Savings Breakdown */}
-            {activeMetricTab === 'saved' && (
-              <SavingsBreakdown
-                savedThisYear={isSubscribed ? (yearlyStats?.savedThisYear ?? 0) : 0}
-                projectedSavings={isSubscribed ? (yearlyStats?.projectedSavings ?? 0) : 0}
-                partsSpentThisYear={isSubscribed ? (yearlyStats?.partsSpentThisYear ?? 0) : 0}
-                projectedPartsCost={isSubscribed ? (yearlyStats?.projectedPartsCost ?? 0) : 0}
-                mechanicCostThisYear={isSubscribed ? (yearlyStats?.mechanicCostThisYear ?? 0) : 0}
-                currency={currency}
-              />
-            )}
+              {/* Savings Breakdown */}
+              {activeMetricTab === 'saved' && (
+                <SavingsBreakdown
+                  savedThisYear={isSubscribed ? (yearlyStats?.savedThisYear ?? 0) : 0}
+                  projectedSavings={isSubscribed ? (yearlyStats?.projectedSavings ?? 0) : 0}
+                  partsSpentThisYear={isSubscribed ? (yearlyStats?.partsSpentThisYear ?? 0) : 0}
+                  projectedPartsCost={isSubscribed ? (yearlyStats?.projectedPartsCost ?? 0) : 0}
+                  mechanicCostThisYear={isSubscribed ? (yearlyStats?.mechanicCostThisYear ?? 0) : 0}
+                  currency={currency}
+                />
+              )}
+            </BlurView>
+            </View>
           </View>
-        </ScrollView>
+        </View>
       )}
 
       {/* Complete Confirmation Modal */}
@@ -395,11 +400,12 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  scrollContent: { paddingBottom: 120, gap: 16 },
 
   screenTitle: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '900',
+    fontStyle: 'italic',
+    textTransform: 'uppercase',
     color: colors.textPrimary,
     textAlign: 'center',
     marginTop: 12,
@@ -408,23 +414,28 @@ const styles = StyleSheet.create({
 
   // Hero wrapper — full bleed
   heroWrapper: {
-    position: 'relative',
-    marginBottom: -80,
-  },
-  heroTitle: {
     position: 'absolute',
-    alignSelf: 'center',
-    fontSize: 15,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.7)',
-    letterSpacing: 6,
-    textTransform: 'uppercase',
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 8,
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 0,
+  },
+  // APEXTUNE logo — fixed over hero
+  logoContainer: {
+    position: 'absolute',
+    left: 16,
     zIndex: 10,
   },
-
+  logoText: {
+    fontSize: 18,
+    fontWeight: '900',
+    fontStyle: 'italic',
+    textTransform: 'uppercase',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
+  },
   // Page dots for bike swiper
   pageDots: {
     position: 'absolute',
@@ -445,11 +456,27 @@ const styles = StyleSheet.create({
   },
 
   // Dashboard content (padded)
-  dashboardContent: { paddingHorizontal: 16, gap: 16 },
+  dashboardContent: { paddingHorizontal: 24, gap: 32, paddingBottom: 16, zIndex: 1 },
 
   // Section header
   sectionHeader: { paddingBottom: 4 },
-  sectionTitle: { fontSize: 18, fontWeight: '600', color: colors.textPrimary },
+  sectionTitle: { fontSize: 18, fontWeight: '800', fontStyle: 'italic', textTransform: 'uppercase', color: colors.textPrimary },
+
+  // Fixed card shell with internal scroll
+  cardContainerOuter: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#1f2937',
+    overflow: 'hidden',
+    alignSelf: 'stretch',
+  },
+  cardContainerBlur: {
+    backgroundColor: 'transparent',
+    padding: 16,
+  },
+  cardScroll: {
+    maxHeight: 280,
+  },
 
   // Task list
   taskList: {},
@@ -459,7 +486,7 @@ const styles = StyleSheet.create({
   // Empty tasks
   emptyTasksContainer: {
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingVertical: 40,
-    backgroundColor: colors.surface1, borderRadius: 16, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 24, borderWidth: 1, borderColor: '#1f2937',
   },
   emptyTasksTitle: { fontSize: 16, fontWeight: '600', color: colors.textPrimary, marginTop: 12, marginBottom: 6 },
   emptyTasksDescription: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 },
@@ -468,7 +495,7 @@ const styles = StyleSheet.create({
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingBottom: 60 },
   emptyIconWrapper: {
     width: 88, height: 88, borderRadius: 24,
-    backgroundColor: colors.surface1, alignItems: 'center', justifyContent: 'center', marginBottom: 24,
+    backgroundColor: 'rgba(255,255,255,0.02)', alignItems: 'center', justifyContent: 'center', marginBottom: 24,
   },
   emptyTitle: { fontSize: 20, fontWeight: '700', color: colors.textPrimary, marginBottom: 10 },
   emptySubtitle: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 32 },
@@ -481,7 +508,7 @@ const styles = StyleSheet.create({
   // Modal
   modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', alignItems: 'center' },
   modalBox: {
-    backgroundColor: colors.surface2, borderRadius: 20, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surface2, borderRadius: 24, borderWidth: 1, borderColor: colors.border,
     paddingHorizontal: 24, paddingTop: 24, paddingBottom: 20, width: '85%', maxWidth: 340,
   },
   modalTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 8 },

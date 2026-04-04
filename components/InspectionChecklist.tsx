@@ -14,6 +14,8 @@ import {
   CheckCircle2,
   Circle,
 } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { Id } from '../convex/_generated/dataModel';
@@ -61,37 +63,60 @@ export function InspectionChecklist({ bikeId, inspectionStatus, isSubscribed }: 
 
   // Not started yet or error — show the start button
   if (!inspectionStatus || inspectionStatus === 'error') {
+    const handleStart = async () => {
+      if (!isSubscribed) {
+        router.push('/membership' as any);
+        return;
+      }
+      setIsStarting(true);
+      try {
+        await startInspection({ bikeId });
+      } catch (e) {
+        if (__DEV__) console.error(e);
+        setIsStarting(false);
+      }
+    };
+
     return (
-      <View style={styles.emptyContainer}>
-        <View style={styles.emptyIconWrapper}>
-          <ClipboardCheck size={40} color={colors.orange} />
-        </View>
-        <Text style={styles.emptyTitle}>Initial Inspection Needed</Text>
-        <Text style={styles.emptySubtitle}>
-          {inspectionStatus === 'error'
-            ? 'Something went wrong generating the checklist. Tap below to try again.'
-            : "Since there's no service history, we'll generate a quick inspection checklist first. Fill it in and we'll create an accurate maintenance plan based on your bike's actual condition."}
-        </Text>
-        <GenerateButton
-          label={inspectionStatus === 'error' ? 'Retry Inspection' : 'Start Inspection'}
-          loadingLabel="Generating Checklist"
-          onPress={async () => {
-            if (!isSubscribed) {
-              router.push('/membership' as any);
-              return;
-            }
-            setIsStarting(true);
-            try {
-              await startInspection({ bikeId });
-            } catch (e) {
-              if (__DEV__) console.error(e);
-              setIsStarting(false);
-            }
-          }}
-          isLoading={isStarting}
-          variant="primary"
-          style={{ marginTop: 8 }}
-        />
+      <View style={styles.inspectCard}>
+        <BlurView intensity={15} tint="dark" style={styles.inspectCardInner}>
+          {/* Top neon gradient edge — HTML: h-1 opacity-30 via-cyan */}
+          <LinearGradient
+            colors={['transparent', '#00f2ff', 'transparent']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, opacity: 0.3 }}
+          />
+
+          {/* Icon: w-20 h-20 rounded-3xl pure black bg, no glow */}
+          <View style={styles.inspectIconWrap}>
+            <ClipboardCheck size={36} color={colors.green} strokeWidth={1.8} />
+          </View>
+
+          {/* Title: bold italic uppercase */}
+          <Text style={styles.inspectTitle}>
+            {inspectionStatus === 'error' ? 'INSPECTION FAILED' : 'INITIAL INSPECTION NEEDED'}
+          </Text>
+
+          {/* Body text */}
+          <Text style={styles.inspectDesc}>
+            {inspectionStatus === 'error'
+              ? 'Something went wrong generating the checklist. Tap below to try again.'
+              : "Since there\u2019s no service history recorded for this unit, our AI requires a preliminary baseline. Complete the 12-point scan to generate your surgical maintenance plan."}
+          </Text>
+
+          {/* CTA button — HTML: w-full rounded-xl py-4 tracking-widest text-sm neon-btn-glow */}
+          <TouchableOpacity
+            style={[styles.inspectCta, { opacity: isStarting ? 0.6 : 1 }]}
+            onPress={handleStart}
+            activeOpacity={0.85}
+            disabled={isStarting}
+          >
+            {isStarting && <ActivityIndicator size={18} color="#000" style={{ marginRight: 8 }} />}
+            <Text style={styles.inspectCtaText}>
+              {isStarting ? 'INITIALIZING...' : inspectionStatus === 'error' ? 'RETRY INSPECTION' : 'INITIALIZE INSPECTION'}
+            </Text>
+          </TouchableOpacity>
+        </BlurView>
       </View>
     );
   }
@@ -368,33 +393,104 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
   },
-  emptyContainer: {
-    backgroundColor: 'rgba(26,26,46,0.4)',
-    borderRadius: 16,
+  // ── Inspection prompt (not started state) — matches HTML v3 ──
+  inspectCard: {
+    borderRadius: 40,
+    borderCurve: 'continuous',
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    padding: 24,
+    borderColor: '#1f2937',
+  } as any,
+  inspectCardInner: {
+    backgroundColor: 'transparent',
+    padding: 40,
+    alignItems: 'center',
+  } as any,
+  inspectIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 24,
+    borderCurve: 'continuous',
+    backgroundColor: '#000000',
+    borderWidth: 1,
+    borderColor: '#1f2937',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 32,
+  } as any,
+  inspectIconGlow: {
+    // Kept for potential reuse but currently unused
+    display: 'none',
+  } as any,
+  inspectTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    fontStyle: 'italic',
+    color: colors.textPrimary,
+    textTransform: 'uppercase',
+    textAlign: 'center',
+    marginBottom: 16,
+  } as any,
+  inspectDesc: {
+    fontSize: 12,
+    color: '#6b7280',
+    lineHeight: 20,
+    textAlign: 'center',
+    marginBottom: 40,
+  },
+  inspectCta: {
+    width: '100%',
+    backgroundColor: colors.green,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 0 20px rgba(0,242,255,0.4)',
+  } as any,
+  inspectCtaText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#000000',
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+  } as any,
+  // Keep old names as aliases for the "no items" state
+  emptyContainer: {
+    borderRadius: 40,
+    borderCurve: 'continuous',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    padding: 40,
     alignItems: 'center',
     gap: 12,
   },
   emptyIconWrapper: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(255,159,67,0.12)',
+    width: 80,
+    height: 80,
+    borderRadius: 24,
+    borderCurve: 'continuous',
+    backgroundColor: '#000000',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '900',
+    fontStyle: 'italic',
     color: colors.textPrimary,
+    textTransform: 'uppercase',
     textAlign: 'center',
   },
   emptySubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
+    fontSize: 12,
+    color: '#6b7280',
     textAlign: 'center',
     lineHeight: 20,
   },

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -15,15 +15,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
-import { useMutation, useAction } from 'convex/react';
+import { useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { router } from 'expo-router';
 import { colors } from '@/constants/theme';
 import PhotoUploadStep from '@/components/add-bike/PhotoUploadStep';
-import EpicShotProcessing from '@/components/add-bike/EpicShotProcessing';
-import EpicShotResult from '@/components/add-bike/EpicShotResult';
 
-type AddBikeStep = 'photo' | 'processing' | 'result' | 'details';
+type AddBikeStep = 'photo' | 'details';
 
 interface FormState {
   make: string;
@@ -50,77 +48,34 @@ export default function AddBikeScreen() {
   const [form, setForm] = useState<FormState>(initialFormState);
   const [isLoading, setIsLoading] = useState(false);
   const [originalUri, setOriginalUri] = useState<string | null>(null);
-  const [epicShotUrl, setEpicShotUrl] = useState<string | null>(null);
+  const [uploadedStorageId, setUploadedStorageId] = useState<string | null>(null);
 
   const addBike = useMutation(api.bikes.add);
   const generateUploadUrl = useMutation(api.imageEdits.generateUploadUrl);
-  const generateEpicPhoto = useAction(api.imageEditActions.generateEpicBikePhoto);
 
   const updateField = (field: keyof FormState) => (value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handlePhotoSelected = (uri: string) => {
+  const handlePhotoSelected = async (uri: string) => {
     setOriginalUri(uri);
-    setStep('processing');
+    try {
+      const uploadUrl = await generateUploadUrl();
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const uploadResult = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': blob.type || 'image/jpeg' },
+        body: blob,
+      });
+      if (!uploadResult.ok) throw new Error('Failed to upload image');
+      const { storageId } = await uploadResult.json();
+      setUploadedStorageId(storageId);
+    } catch (error) {
+      if (__DEV__) console.error('Photo upload failed:', error);
+    }
+    setStep('details');
   };
-
-  // Upload photo and call AI when entering processing step
-  useEffect(() => {
-    if (step !== 'processing' || !originalUri) return;
-
-    let cancelled = false;
-
-    const processPhoto = async () => {
-      try {
-        // 1. Get upload URL
-        const uploadUrl = await generateUploadUrl();
-
-        // 2. Upload the image
-        const response = await fetch(originalUri);
-        const blob = await response.blob();
-
-        const uploadResult = await fetch(uploadUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': blob.type || 'image/jpeg' },
-          body: blob,
-        });
-
-        if (!uploadResult.ok) {
-          throw new Error('Failed to upload image');
-        }
-
-        const { storageId } = await uploadResult.json();
-
-        // 3. Call the AI action
-        const result = await generateEpicPhoto({ storageId });
-
-        if (cancelled) return;
-
-        if (result.editedUrl) {
-          setEpicShotUrl(result.editedUrl);
-          setStep('result');
-        } else {
-          throw new Error('No edited URL returned');
-        }
-      } catch (error) {
-        if (cancelled) return;
-        if (__DEV__) console.error('Epic shot failed:', error);
-        Alert.alert(
-          'Oops',
-          'The Los Santos Customs crew had trouble with your photo. Want to try again?',
-          [
-            { text: 'Try Again', onPress: () => { setStep('photo'); } },
-            { text: 'Skip', onPress: () => { setStep('details'); } },
-          ]
-        );
-      }
-    };
-
-    processPhoto();
-
-    return () => { cancelled = true; };
-  }, [step, originalUri]);
 
   const validate = (): boolean => {
     if (!form.make.trim()) {
@@ -152,7 +107,7 @@ export default function AddBikeScreen() {
         model: form.model.trim(),
         year: Number(form.year),
         mileage: Number(form.mileage),
-        imageUrl: epicShotUrl || undefined,
+        photoStorageId: uploadedStorageId || undefined,
         lastServiceDate: form.lastServiceDate.trim() || undefined,
         lastServiceMileage: form.lastServiceMileage.trim()
           ? Number(form.lastServiceMileage)
@@ -169,9 +124,7 @@ export default function AddBikeScreen() {
   };
 
   const handleBack = () => {
-    if (step === 'details' && epicShotUrl) {
-      setStep('result');
-    } else if (step === 'result') {
+    if (step === 'details') {
       setStep('photo');
     } else if (router.canGoBack()) {
       router.back();
@@ -180,17 +133,13 @@ export default function AddBikeScreen() {
     }
   };
 
-  const headerTitle = step === 'photo' || step === 'processing' || step === 'result'
-    ? 'Add Bike'
-    : 'Bike Details';
+  const headerTitle = step === 'photo' ? 'Add Bike' : 'Bike Details';
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
 
-      {/* Header - hidden during processing */}
-      {step !== 'processing' && (
-        <View style={styles.header}>
+      <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={handleBack}
@@ -201,7 +150,6 @@ export default function AddBikeScreen() {
           <Text style={styles.headerTitle}>{headerTitle}</Text>
           <View style={styles.headerSpacer} />
         </View>
-      )}
 
       {/* Step 1: Photo Upload */}
       {step === 'photo' && (
@@ -211,25 +159,7 @@ export default function AddBikeScreen() {
         />
       )}
 
-      {/* Step 2: Processing */}
-      {step === 'processing' && originalUri && (
-        <EpicShotProcessing originalUri={originalUri} />
-      )}
-
-      {/* Step 3: Result */}
-      {step === 'result' && epicShotUrl && (
-        <EpicShotResult
-          epicShotUrl={epicShotUrl}
-          onAccept={() => setStep('details')}
-          onRetake={() => {
-            setEpicShotUrl(null);
-            setOriginalUri(null);
-            setStep('photo');
-          }}
-        />
-      )}
-
-      {/* Step 4: Bike Details Form */}
+      {/* Step 2: Bike Details Form */}
       {step === 'details' && (
         <KeyboardAvoidingView
           style={styles.keyboardAvoidingView}
@@ -242,10 +172,10 @@ export default function AddBikeScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Epic Shot Preview */}
-            {epicShotUrl && (
+            {/* Photo Preview */}
+            {originalUri && (
               <View style={styles.epicPreviewContainer}>
-                <Image source={{ uri: epicShotUrl }} style={styles.epicPreviewImage} />
+                <Image source={{ uri: originalUri }} style={styles.epicPreviewImage} />
               </View>
             )}
 

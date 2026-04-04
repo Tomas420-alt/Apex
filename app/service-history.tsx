@@ -242,7 +242,7 @@ export default function ServiceHistoryScreen() {
               <BlurView intensity={20} tint="light" style={s.blurView} />
               <View style={s.paywallContent}>
                 <View style={s.paywallBadge}>
-                  <Crown size={26} color="#B47800" />
+                  <Crown size={26} color={colors.green} />
                 </View>
                 <Text style={s.paywallTitle}>Pro Feature</Text>
                 <Text style={s.paywallSubtitle}>
@@ -304,7 +304,7 @@ const s = StyleSheet.create({
   },
   backBtn: {
     width: 36, height: 36, borderRadius: 10,
-    backgroundColor: 'rgba(26,26,46,0.4)', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center',
   },
   headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
 
@@ -386,7 +386,7 @@ const s = StyleSheet.create({
     height: 52,
     borderRadius: 16,
     borderCurve: 'continuous',
-    backgroundColor: 'rgba(180,120,0,0.12)',
+    backgroundColor: 'rgba(0,242,255,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
@@ -415,7 +415,7 @@ const s = StyleSheet.create({
     borderCurve: 'continuous',
     paddingVertical: 14,
     paddingHorizontal: 40,
-    boxShadow: '0 4px 12px rgba(0,229,153,0.3)',
+    boxShadow: '0 4px 12px rgba(0,242,255,0.3)',
   },
   paywallButtonText: {
     fontSize: 16,
@@ -432,8 +432,8 @@ const s = StyleSheet.create({
   downloadBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
   shareBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: 'rgba(0,229,153,0.1)', borderRadius: 14, paddingVertical: 16,
-    paddingHorizontal: 24, borderWidth: 1, borderColor: 'rgba(0,229,153,0.2)',
+    backgroundColor: 'rgba(0,242,255,0.1)', borderRadius: 14, paddingVertical: 16,
+    paddingHorizontal: 24, borderWidth: 1, borderColor: 'rgba(0,242,255,0.2)',
   },
   shareBtnText: { fontSize: 15, fontWeight: '700', color: colors.green },
 });

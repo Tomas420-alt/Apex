@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Platform } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { AuthProvider } from './providers/AuthProvider';
 import { AnimatedSplash } from '@/components/AnimatedSplash';
@@ -20,12 +21,14 @@ export default function RootLayout() {
   const [splashDone, setSplashDone] = useState(false);
 
   return (
-    <AuthProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="light" />
-      {!splashDone && <AnimatedSplash onFinish={() => setSplashDone(true)} />}
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="+not-found" />
+        </Stack>
+        <StatusBar style="light" />
+        {!splashDone && <AnimatedSplash onFinish={() => setSplashDone(true)} />}
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

@@ -4,6 +4,7 @@ import { Building2, Gauge, Compass, Mountain, Shuffle } from 'lucide-react-nativ
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
 import { SelectionCard } from '@/components/onboarding/SelectionCard';
+import { CTAButton } from '@/components/onboarding/CTAButton';
 
 const OPTIONS = [
   { label: 'Commuting', value: 'commuting', icon: Building2 },
@@ -16,26 +17,37 @@ const OPTIONS = [
 export default function RidingStyleScreen() {
   const router = useRouter();
   const { setField } = useOnboarding();
-  const [selected, setSelected] = useState('');
+  const [selected, setSelected] = useState<string[]>([]);
 
-  const handleSelect = (value: string) => {
-    setSelected(value);
-    setField('ridingStyle', value);
-    setTimeout(() => router.push('/onboarding/riding-frequency'), 300);
+  const toggleOption = (value: string) => {
+    setSelected((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
+  };
+
+  const handleContinue = () => {
+    setField('ridingStyle', selected.join(', '));
+    router.push('/onboarding/riding-frequency');
   };
 
   return (
-    <OnboardingScreen step={4} title="What type of riding do you mostly do?">
+    <OnboardingScreen step={4} title="What type of riding do you mostly do?" subtitle="Select all that apply">
       {OPTIONS.map((opt) => (
         <SelectionCard
           key={opt.value}
           label={opt.label}
           value={opt.value}
           icon={opt.icon}
-          selected={selected === opt.value}
-          onPress={handleSelect}
+          selected={selected.includes(opt.value)}
+          onPress={toggleOption}
         />
       ))}
+      <CTAButton
+        label="Continue"
+        onPress={handleContinue}
+        disabled={selected.length === 0}
+        arrow
+      />
     </OnboardingScreen>
   );
 }

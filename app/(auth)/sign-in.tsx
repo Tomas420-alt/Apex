@@ -2,296 +2,308 @@ import React, { useState } from "react";
 import {
   View,
   Text,
-  TextInput,
   Pressable,
   ActivityIndicator,
-  Keyboard,
-  TouchableWithoutFeedback,
+  Platform,
 } from "react-native";
 import Animated, {
   FadeInDown,
   FadeIn,
-  useAnimatedKeyboard,
-  useAnimatedStyle,
   LinearTransition,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import * as WebBrowser from "expo-web-browser";
+import * as AppleAuthentication from "expo-apple-authentication";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { Link } from "expo-router";
 import { colors } from "@/constants/theme";
 
 export default function SignInScreen() {
   const { signIn } = useAuthActions();
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<"apple" | "google" | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const keyboard = useAnimatedKeyboard();
-  const keyboardStyle = useAnimatedStyle(() => ({
-    paddingBottom: keyboard.height.value,
-  }));
-
-  const onSignInPress = async () => {
-    if (!email || !password) {
-      setErrorMessage("Please enter your email and password.");
-      if (process.env.EXPO_OS === "ios") {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      }
-      return;
-    }
-
-    setLoading(true);
+  // Native Apple Sign In — uses Face ID / Touch ID sheet on iOS
+  const handleAppleSignIn = async () => {
+    setLoading("apple");
     setErrorMessage("");
+
     try {
-      await signIn("password", { email, password, flow: "signIn" });
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      if (!credential.identityToken) {
+        throw new Error("No identity token returned from Apple");
+      }
+
+      // Pass the Apple identity token to Convex Auth
+      await signIn("apple", {
+        token: credential.identityToken,
+        name: credential.fullName
+          ? `${credential.fullName.givenName ?? ""} ${credential.fullName.familyName ?? ""}`.trim()
+          : undefined,
+        email: credential.email ?? undefined,
+      });
+
       if (process.env.EXPO_OS === "ios") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     } catch (err: any) {
-      if (__DEV__) console.error("Sign in error:", err);
+      if (err.code === "ERR_REQUEST_CANCELED") {
+        setLoading(null);
+        return;
+      }
+      if (__DEV__) console.error("Apple sign in error:", err);
+      setErrorMessage("Apple sign in failed. Please try again.");
+      if (process.env.EXPO_OS === "ios") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  // Google Sign In — uses web redirect flow via Convex Auth
+  const handleGoogleSignIn = async () => {
+    setLoading("google");
+    setErrorMessage("");
+
+    try {
+      // Pass redirectTo so the OAuth callback redirects back to the native app
+      const redirectUri = "apextune://auth/callback";
+      const { redirect } = await signIn("google", { redirectTo: redirectUri });
+
+      if (redirect) {
+        // Open Google consent screen; listen for our app scheme redirect
+        const result = await WebBrowser.openAuthSessionAsync(
+          redirect.toString(),
+          redirectUri,
+        );
+
+        if (result.type === "success" && result.url) {
+          // Extract the code from the callback URL and complete auth
+          const url = new URL(result.url);
+          const code = url.searchParams.get("code") || url.hash?.match(/code=([^&]+)/)?.[1];
+          if (code) {
+            await signIn("google", { code });
+          }
+        } else if (result.type === "cancel" || result.type === "dismiss") {
+          setLoading(null);
+          return;
+        }
+      }
+
+      if (process.env.EXPO_OS === "ios") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (err: any) {
+      if (__DEV__) console.error("Google sign in error:", err);
       const raw = err?.message?.toLowerCase() ?? "";
-      let message = "Sign in failed. Please check your credentials.";
-      if (raw.includes("invalid") || raw.includes("secret") || raw.includes("credentials")) {
-        message = "Incorrect email or password. Please try again.";
-      } else if (raw.includes("not found") || raw.includes("no user")) {
-        message = "No account found with this email. Please sign up first.";
-      } else if (raw.includes("network") || raw.includes("connect")) {
+      let message = "Google sign in failed. Please try again.";
+      if (raw.includes("network") || raw.includes("connect")) {
         message = "Unable to connect. Please check your internet connection.";
+      } else if (raw.includes("cancel")) {
+        setLoading(null);
+        return;
       }
       setErrorMessage(message);
       if (process.env.EXPO_OS === "ios") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
     } finally {
-      setLoading(false);
+      setLoading(null);
     }
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-      <Animated.View
-        style={[{ flex: 1, backgroundColor: colors.bg }, keyboardStyle]}
-      >
-        <View style={{ flex: 1, justifyContent: "center", paddingHorizontal: 28 }}>
-          {/* Brand mark */}
-          <Animated.View
-            entering={FadeIn.duration(600)}
-            style={{ alignItems: "center", marginBottom: 48 }}
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <View style={{ flex: 1, justifyContent: "center", paddingHorizontal: 28 }}>
+        {/* Brand mark */}
+        <Animated.View
+          entering={FadeIn.duration(600)}
+          style={{ alignItems: "center", marginBottom: 48 }}
+        >
+          <View
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: 20,
+              borderCurve: "continuous",
+              backgroundColor: "rgba(0,242,255,0.12)",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 20,
+              borderWidth: 1,
+              borderColor: "rgba(0,242,255,0.2)",
+            }}
           >
-            <View
+            <Text style={{ fontSize: 32, fontWeight: "800", color: colors.green }}>
+              A
+            </Text>
+          </View>
+          <Text
+            style={{
+              fontSize: 34,
+              fontWeight: "800",
+              fontStyle: "italic",
+              color: colors.textPrimary,
+              letterSpacing: 1,
+              textTransform: "uppercase",
+            }}
+          >
+            APEXTUNE
+          </Text>
+          <Text
+            style={{
+              fontSize: 17,
+              color: colors.textSecondary,
+              marginTop: 8,
+              textAlign: "center",
+            }}
+          >
+            Sign in to start tracking your bike
+          </Text>
+        </Animated.View>
+
+        {/* Error message */}
+        {errorMessage ? (
+          <Animated.View
+            entering={FadeInDown.duration(300).springify()}
+            layout={LinearTransition}
+            style={{
+              backgroundColor: "rgba(255, 107, 107, 0.1)",
+              borderRadius: 12,
+              borderCurve: "continuous",
+              padding: 14,
+              marginBottom: 20,
+              borderWidth: 1,
+              borderColor: "rgba(255, 107, 107, 0.25)",
+            }}
+          >
+            <Text
+              selectable
               style={{
-                width: 72,
-                height: 72,
-                borderRadius: 20,
-                borderCurve: "continuous",
-                backgroundColor: "rgba(0, 229, 153, 0.12)",
+                color: colors.red,
+                fontSize: 14,
+                textAlign: "center",
+                lineHeight: 20,
+              }}
+            >
+              {errorMessage}
+            </Text>
+          </Animated.View>
+        ) : null}
+
+        {/* Auth buttons */}
+        <Animated.View
+          entering={FadeInDown.delay(100).duration(500)}
+          style={{ gap: 14 }}
+        >
+          {/* Native Apple Sign In — system Face ID / Touch ID sheet on iOS */}
+          {Platform.OS === "ios" ? (
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+              cornerRadius={14}
+              style={{ height: 52 }}
+              onPress={handleAppleSignIn}
+            />
+          ) : (
+            <Pressable
+              onPress={handleAppleSignIn}
+              disabled={loading !== null}
+              style={({ pressed }) => ({
+                flexDirection: "row",
                 alignItems: "center",
                 justifyContent: "center",
-                marginBottom: 20,
-                borderWidth: 1,
-                borderColor: "rgba(0, 229, 153, 0.2)",
-              }}
-            >
-              <Text style={{ fontSize: 32, fontWeight: "800", color: colors.green }}>
-                A
-              </Text>
-            </View>
-            <Text
-              style={{
-                fontSize: 34,
-                fontWeight: "800",
-                color: colors.textPrimary,
-                letterSpacing: -0.5,
-              }}
-            >
-              Welcome back
-            </Text>
-            <Text
-              style={{
-                fontSize: 17,
-                color: colors.textSecondary,
-                marginTop: 8,
-              }}
-            >
-              Sign in to your Apex account
-            </Text>
-          </Animated.View>
-
-          {/* Error message */}
-          {errorMessage ? (
-            <Animated.View
-              entering={FadeInDown.duration(300).springify()}
-              layout={LinearTransition}
-              style={{
-                backgroundColor: "rgba(255, 107, 107, 0.1)",
-                borderRadius: 12,
-                borderCurve: "continuous",
-                padding: 14,
-                marginBottom: 20,
-                borderWidth: 1,
-                borderColor: "rgba(255, 107, 107, 0.25)",
-              }}
-            >
-              <Text
-                selectable
-                style={{
-                  color: colors.red,
-                  fontSize: 14,
-                  textAlign: "center",
-                  lineHeight: 20,
-                }}
-              >
-                {errorMessage}
-              </Text>
-            </Animated.View>
-          ) : null}
-
-          {/* Form fields */}
-          <Animated.View
-            entering={FadeInDown.delay(100).duration(500)}
-            style={{ gap: 14 }}
-          >
-            <View>
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontWeight: "600",
-                  color: colors.textSecondary,
-                  marginBottom: 8,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.5,
-                }}
-              >
-                Email
-              </Text>
-              <TextInput
-                style={{
-                  backgroundColor: colors.surface1,
-                  borderRadius: 14,
-                  borderCurve: "continuous",
-                  paddingHorizontal: 18,
-                  paddingVertical: 16,
-                  fontSize: 17,
-                  color: colors.textPrimary,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                }}
-                placeholder="you@example.com"
-                placeholderTextColor={colors.textTertiary}
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                autoComplete="email"
-                textContentType="emailAddress"
-                returnKeyType="next"
-              />
-            </View>
-
-            <View>
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontWeight: "600",
-                  color: colors.textSecondary,
-                  marginBottom: 8,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.5,
-                }}
-              >
-                Password
-              </Text>
-              <TextInput
-                style={{
-                  backgroundColor: colors.surface1,
-                  borderRadius: 14,
-                  borderCurve: "continuous",
-                  paddingHorizontal: 18,
-                  paddingVertical: 16,
-                  fontSize: 17,
-                  color: colors.textPrimary,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                }}
-                placeholder="Enter your password"
-                placeholderTextColor={colors.textTertiary}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                autoComplete="password"
-                textContentType="password"
-                returnKeyType="go"
-                onSubmitEditing={onSignInPress}
-              />
-            </View>
-          </Animated.View>
-
-          {/* Sign in button */}
-          <Animated.View entering={FadeInDown.delay(200).duration(500)}>
-            <Pressable
-              onPress={onSignInPress}
-              disabled={loading}
-              style={({ pressed }) => ({
-                backgroundColor: colors.green,
+                gap: 10,
+                backgroundColor: "#FFFFFF",
                 borderRadius: 14,
                 borderCurve: "continuous",
-                paddingVertical: 18,
-                alignItems: "center",
-                marginTop: 24,
-                opacity: loading ? 0.6 : pressed ? 0.85 : 1,
-                transform: [{ scale: pressed ? 0.98 : 1 }],
-                boxShadow: "0 4px 16px rgba(0, 229, 153, 0.3)",
+                paddingVertical: 16,
+                opacity: loading === "apple" ? 0.6 : pressed ? 0.85 : 1,
               })}
             >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
+              {loading === "apple" ? (
+                <ActivityIndicator color="#000" />
               ) : (
-                <Text
-                  style={{
-                    color: "#fff",
-                    fontSize: 17,
-                    fontWeight: "700",
-                    letterSpacing: -0.2,
-                  }}
-                >
-                  Sign In
+                <Text style={{ color: "#000", fontSize: 17, fontWeight: "600" }}>
+                  Sign in with Apple
                 </Text>
               )}
             </Pressable>
-          </Animated.View>
+          )}
 
-          {/* Footer */}
-          <Animated.View
-            entering={FadeInDown.delay(300).duration(500)}
-            style={{
+          {/* Sign in with Google — web redirect */}
+          <Pressable
+            onPress={handleGoogleSignIn}
+            disabled={loading !== null}
+            style={({ pressed }) => ({
               flexDirection: "row",
-              justifyContent: "center",
               alignItems: "center",
-              marginTop: 28,
-              gap: 4,
-            }}
+              justifyContent: "center",
+              gap: 10,
+              backgroundColor: colors.surface2,
+              borderRadius: 14,
+              borderCurve: "continuous",
+              paddingVertical: 16,
+              borderWidth: 1,
+              borderColor: colors.border,
+              opacity: loading === "google" ? 0.6 : pressed ? 0.85 : 1,
+              transform: [{ scale: pressed ? 0.98 : 1 }],
+            })}
           >
-            <Text style={{ color: colors.textSecondary, fontSize: 15 }}>
-              Don&apos;t have an account?
-            </Text>
-            <Link href="/(auth)/sign-up" asChild>
-              <Pressable hitSlop={8}>
+            {loading === "google" ? (
+              <ActivityIndicator color={colors.textPrimary} />
+            ) : (
+              <>
+                <Text style={{ fontSize: 18, fontWeight: "700", color: colors.textPrimary }}>G</Text>
                 <Text
                   style={{
-                    color: colors.green,
-                    fontSize: 15,
+                    color: colors.textPrimary,
+                    fontSize: 17,
                     fontWeight: "600",
+                    letterSpacing: -0.2,
                   }}
                 >
-                  Sign Up
+                  Sign in with Google
                 </Text>
-              </Pressable>
-            </Link>
+              </>
+            )}
+          </Pressable>
+        </Animated.View>
+
+        {/* Loading indicator */}
+        {loading && (
+          <Animated.View
+            entering={FadeInDown.duration(200)}
+            style={{ alignItems: "center", marginTop: 24 }}
+          >
+            <ActivityIndicator color={colors.green} />
           </Animated.View>
-        </View>
-      </Animated.View>
-    </TouchableWithoutFeedback>
+        )}
+
+        {/* Terms */}
+        <Animated.View
+          entering={FadeInDown.delay(200).duration(500)}
+          style={{ marginTop: 32, alignItems: "center" }}
+        >
+          <Text
+            style={{
+              color: colors.textTertiary,
+              fontSize: 12,
+              textAlign: "center",
+              lineHeight: 18,
+              paddingHorizontal: 16,
+            }}
+          >
+            By continuing, you agree to our Terms of Service and Privacy Policy
+          </Text>
+        </Animated.View>
+      </View>
+    </View>
   );
 }

@@ -45,13 +45,16 @@ import { GenerateButton } from '../../components/GenerateButton';
 import { InspectionChecklist } from '../../components/InspectionChecklist';
 import { getCurrencySymbol, getCurrencyIconName } from '../../utils/currency';
 import { CurrencyIcon } from '../../components/CurrencyIcon';
+import { PlanGenerationSkeletonLoader } from '../../components/SkeletonLoader';
+import { TaskDetailModal } from '../../components/TaskDetailModal';
 import { colors } from '@/constants/theme';
+import { useBikeContext } from '@/hooks/useSelectedBike';
 
 // ─── Background ─────────────────────────────────────────────────────────────
 
 function DigitalGrid({ width, height }: { width: number; height: number }) {
   const spacing = 40;
-  const c = 'rgba(0,242,255,0.045)';
+  const c = 'rgba(0,242,255,0.05)';
   const cols = Math.ceil(width / spacing);
   const rows = Math.ceil(height / spacing);
   return (
@@ -73,13 +76,20 @@ function Background({ w, h }: { w: number; h: number }) {
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <Svg width={w} height={h} style={StyleSheet.absoluteFill}>
         <Defs>
-          <RadialGradient id="glow" cx="50%" cy="50%" rx="50%" ry="50%">
+          <RadialGradient id="glowTopRight" cx="50%" cy="50%" rx="50%" ry="50%">
             <Stop offset="0%" stopColor="#00f2ff" stopOpacity="0.04" />
             <Stop offset="40%" stopColor="#00f2ff" stopOpacity="0.015" />
             <Stop offset="100%" stopColor="#00f2ff" stopOpacity="0" />
           </RadialGradient>
+          <RadialGradient id="glowBottomRight" cx="50%" cy="50%" rx="50%" ry="50%">
+            <Stop offset="0%" stopColor="#00f2ff" stopOpacity="0.05" />
+            <Stop offset="25%" stopColor="#00f2ff" stopOpacity="0.025" />
+            <Stop offset="55%" stopColor="#00f2ff" stopOpacity="0.01" />
+            <Stop offset="100%" stopColor="#00f2ff" stopOpacity="0" />
+          </RadialGradient>
         </Defs>
-        <Rect x={w - 350} y={-200} width={600} height={600} fill="url(#glow)" />
+        <Rect x={w - 350} y={-200} width={600} height={600} fill="url(#glowTopRight)" />
+        <Rect x={w - 320} y={h - 500} width={620} height={620} fill="url(#glowBottomRight)" />
       </Svg>
       <DigitalGrid width={w} height={h} />
     </View>
@@ -156,40 +166,52 @@ function TaskRow({ task, onPress, currency }: { task: MaintenanceTask; onPress: 
   const pCfg = PRIORITY_CONFIG[priority];
   const sCfg = STATUS_CONFIG[status];
   const done = status === 'completed';
+  const showStatusBadge = status !== 'pending';
 
   return (
     <TouchableOpacity
-      style={{ flexDirection: 'row', overflow: 'hidden', opacity: done ? 0.55 : 1 }}
+      style={{
+        backgroundColor: 'rgba(255,255,255,0.02)',
+        borderLeftWidth: 2,
+        borderLeftColor: pCfg.text,
+        borderRadius: 12,
+        borderTopLeftRadius: 0,
+        borderBottomLeftRadius: 0,
+        padding: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        opacity: done ? 0.55 : 1,
+      }}
       onPress={onPress}
       activeOpacity={0.7}
     >
-      <View style={{ width: 3, backgroundColor: pCfg.text }} />
-      <View style={{ flex: 1, padding: 14, gap: 6 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-          <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textPrimary, flex: 1, textDecorationLine: done ? 'line-through' : 'none' }} numberOfLines={1}>
-            {task.name}
-          </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <View style={{ borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2, backgroundColor: sCfg.bg }}>
-              <Text style={{ fontSize: 10, fontWeight: '700', color: sCfg.text }}>{sCfg.label}</Text>
-            </View>
-            <ChevronRight size={14} color={colors.textTertiary} />
-          </View>
-        </View>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+      <View style={{ flex: 1, gap: 4 }}>
+        <Text style={{ fontSize: 12, fontWeight: '900', textTransform: 'uppercase', fontStyle: 'italic', color: colors.textPrimary, textDecorationLine: done ? 'line-through' : 'none' }} numberOfLines={1}>
+          {task.name}
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           {task.dueDate && /^\d{4}-\d{2}-\d{2}/.test(task.dueDate) && (
-            <Text style={{ fontSize: 11, color: colors.textTertiary, fontWeight: '500' }}>
+            <Text style={{ fontSize: 11, fontWeight: '600', textTransform: 'uppercase', color: colors.textSecondary }}>
               {new Date(task.dueDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
             </Text>
           )}
           {task.estimatedCostUsd ? (
-            <Text style={{ fontSize: 11, color: colors.green, fontWeight: '500' }}>{currency}{task.estimatedCostUsd.toFixed(0)}</Text>
+            <Text style={{ fontSize: 11, fontWeight: '600', textTransform: 'uppercase', color: colors.green }}>{currency}{task.estimatedCostUsd.toFixed(0)}</Text>
           ) : null}
-          {task.partsNeeded && task.partsNeeded.length > 0 && (
-            <Text style={{ fontSize: 11, color: colors.textTertiary, fontWeight: '500' }}>{task.partsNeeded.length} parts</Text>
-          )}
+          {task.partsNeeded && task.partsNeeded.length > 0 ? (
+            <Text style={{ fontSize: 11, fontWeight: '600', textTransform: 'uppercase', color: colors.textSecondary }}>{task.partsNeeded.length} parts</Text>
+          ) : null}
+          {!task.estimatedCostUsd && (!task.partsNeeded || task.partsNeeded.length === 0) && !task.dueDate ? (
+            <Text style={{ fontSize: 11, fontWeight: '600', textTransform: 'uppercase', color: colors.textSecondary }}>No parts needed</Text>
+          ) : null}
         </View>
       </View>
+      {showStatusBadge && (
+        <View style={{ borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2, backgroundColor: sCfg.bg }}>
+          <Text style={{ fontSize: 10, fontWeight: '700', color: sCfg.text }}>{sCfg.label}</Text>
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
@@ -197,16 +219,13 @@ function TaskRow({ task, onPress, currency }: { task: MaintenanceTask; onPress: 
 // ─── Main Screen ────────────────────────────────────────────────────────────
 
 export default function PlanScreen() {
-  const bikes = (useQuery(api.bikes.list) ?? []) as BikeDoc[];
+  const { bikes: bikesList, selectedBikeIndex, setSelectedBikeIndex, selectedBike, selectedBikeId: bikeId } = useBikeContext();
+  const bikes = bikesList as BikeDoc[];
   const currentUser = useQuery(api.users.getCurrent);
   const currency = getCurrencySymbol(currentUser?.country);
   const currencyIconName = getCurrencyIconName(currentUser?.country);
   const isSubscribed = currentUser?.subscriptionStatus === 'active';
   const { width: sw, height: sh } = useWindowDimensions();
-
-  const [selectedBikeIndex, setSelectedBikeIndex] = useState(0);
-  const selectedBike = bikes[selectedBikeIndex] ?? null;
-  const bikeId = selectedBike?._id;
 
   const plan = useQuery(api.maintenancePlans.getByBike, bikeId ? { bikeId } : 'skip');
   const rawTasks = useQuery(api.maintenanceTasks.listByBike, bikeId ? { bikeId } : 'skip');
@@ -286,6 +305,14 @@ export default function PlanScreen() {
   const yearProgress = yearTotalCount > 0 ? yearCompletedCount / yearTotalCount : 0;
   const yearRemaining = yearTotalCount - yearCompletedCount;
 
+  // Derive next service date from earliest pending task (more accurate than AI-generated value)
+  const nextServiceDate = sortedActive.length > 0 && sortedActive[0].dueDate
+    ? sortedActive[0].dueDate
+    : plan?.nextServiceDate;
+
+  // Is the inspection checklist active? (needs its own scroll)
+  const showingInspection = !!(bikeId && !plan && selectedBike && !selectedBike.lastServiceDate && selectedBike.inspectionStatus !== 'complete');
+
   // ── Empty: no bikes ──
   if (bikes.length === 0) {
     return (
@@ -312,9 +339,8 @@ export default function PlanScreen() {
       <Background w={sw} h={sh} />
 
       <SafeAreaView style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 28, paddingBottom: 120, gap: 24 }} showsVerticalScrollIndicator={false}>
-
-          {/* ── Header — matches Pilot Protocol placement ── */}
+        {/* ── Fixed header + bike card ── */}
+        <View style={{ paddingHorizontal: 24, paddingTop: 28, gap: 24 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, marginTop: -2 }}>
             <Cpu size={20} color={colors.green} />
             <Text style={{ fontSize: 18, fontWeight: '900', fontStyle: 'italic', textTransform: 'uppercase', letterSpacing: -0.5, color: colors.textPrimary }}>
@@ -322,44 +348,17 @@ export default function PlanScreen() {
             </Text>
           </View>
 
-          {/* ── Bike chips ── */}
-          {bikes.length > 1 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -24 }} contentContainerStyle={{ paddingHorizontal: 24, gap: 8 }}>
-              {bikes.map((bike, index) => (
-                <TouchableOpacity
-                  key={bike._id}
-                  style={{
-                    backgroundColor: selectedBikeIndex === index ? 'rgba(0,242,255,0.15)' : 'rgba(255,255,255,0.04)',
-                    borderRadius: 20, borderCurve: 'continuous',
-                    paddingHorizontal: 16, paddingVertical: 8,
-                    borderWidth: 1,
-                    borderColor: selectedBikeIndex === index ? colors.green : 'rgba(255,255,255,0.08)',
-                  }}
-                  onPress={() => setSelectedBikeIndex(index)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: selectedBikeIndex === index ? colors.green : colors.textSecondary }}>
-                    {bike.make} {bike.model}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          )}
-
-          {/* ── Unit Selector Card ── */}
-          {/* HTML: bg-card/80 rounded-2xl border-gray-800 p-4 */}
           {selectedBike && (
             <View style={{ borderRadius: 16, borderCurve: 'continuous', overflow: 'hidden', borderWidth: 1, borderColor: '#1f2937', marginTop: 5 }}>
               <BlurView intensity={15} tint="dark" style={{ backgroundColor: 'transparent' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-                  {/* HTML: w-12 h-12 bg-black rounded-lg border-gray-800 */}
                   <View style={{
                     width: 48, height: 48, borderRadius: 8, borderCurve: 'continuous',
                     backgroundColor: '#000000', borderWidth: 1, borderColor: '#1f2937',
                     alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <Image source={require('../../assets/images/motorcycle-icon.png')} style={{ width: 30, height: 30, tintColor: '#FFFFFF' }} resizeMode="contain" />
+                    <Image source={require('../../assets/images/frame-1.png')} style={{ width: 30, height: 30, tintColor: '#FFFFFF' }} resizeMode="contain" />
                   </View>
                   <View>
                     <Text style={{ fontSize: 14, fontWeight: '900', color: colors.textPrimary, textTransform: 'uppercase', fontStyle: 'italic' }}>
@@ -381,176 +380,157 @@ export default function PlanScreen() {
               </BlurView>
             </View>
           )}
+        </View>
 
-          {/* ═══ Plan Content ═══ */}
+        {/* ── Inspection checklist (flex:1 with its own internal scroll) ── */}
+        {showingInspection ? (
+          <View style={{ flex: 1, paddingHorizontal: 24, gap: 24 }}>
+            <InspectionChecklist bikeId={bikeId!} inspectionStatus={selectedBike?.inspectionStatus} isSubscribed={isSubscribed} />
+            {!isSubscribed && <ManualInputButton />}
+          </View>
 
-          {/* Needs inspection (existing checklist) */}
-          {bikeId && !plan && selectedBike && !selectedBike.lastServiceDate && selectedBike.inspectionStatus !== 'complete' ? (
-            <>
-              <InspectionChecklist bikeId={bikeId} inspectionStatus={selectedBike.inspectionStatus} isSubscribed={isSubscribed} />
-              {!isSubscribed && <ManualInputButton />}
-            </>
+        /* ── Generating after inspection ── */
+        ) : bikeId && !plan && selectedBike?.inspectionStatus === 'complete' ? (
+          <View style={{ paddingHorizontal: 24, paddingTop: 24 }}>
+            <PlanGenerationSkeletonLoader />
+          </View>
 
-          /* Generating after inspection */
-          ) : bikeId && !plan && selectedBike?.inspectionStatus === 'complete' ? (
-            <View style={{ alignItems: 'center', paddingVertical: 40, gap: 12 }}>
-              <ActivityIndicator size="large" color={colors.green} />
-              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.textPrimary }}>Building your plan...</Text>
-              <Text style={{ fontSize: 13, color: colors.textSecondary }}>Analyzing inspection results</Text>
-            </View>
-
-          /* ── No plan: Inspection Prompt ── */
-          /* HTML: bg-card/90 rounded-[2.5rem] p-10 border-gray-800 */
-          ) : bikeId && !plan ? (
-            <>
-              <View style={{
-                borderRadius: 40, borderCurve: 'continuous', overflow: 'hidden',
-                borderWidth: 1, borderColor: '#1f2937',
+        /* ── No plan: Inspection Prompt ── */
+        ) : bikeId && !plan ? (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 120, gap: 24 }} showsVerticalScrollIndicator={false}>
+            <View style={{
+              borderRadius: 40, borderCurve: 'continuous', overflow: 'hidden',
+              borderWidth: 1, borderColor: '#1f2937',
+            }}>
+              <BlurView intensity={15} tint="dark" style={{
+                backgroundColor: 'transparent',
+                padding: 40, alignItems: 'center',
               }}>
-                <BlurView intensity={15} tint="dark" style={{
-                  backgroundColor: 'transparent',
-                  padding: 40, alignItems: 'center',
+                <LinearGradient
+                  colors={['transparent', '#00f2ff', 'transparent']}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, opacity: 0.3 }}
+                />
+                <View style={{
+                  width: 80, height: 80, borderRadius: 24, borderCurve: 'continuous',
+                  backgroundColor: '#000000', borderWidth: 1, borderColor: '#1f2937',
+                  alignItems: 'center', justifyContent: 'center', marginBottom: 32,
                 }}>
-                  {/* Top neon gradient line — HTML: h-1 opacity-30 */}
-                  <LinearGradient
-                    colors={['transparent', '#00f2ff', 'transparent']}
-                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                    style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, opacity: 0.3 }}
-                  />
-
-                  {/* Icon: w-20 h-20 rounded-3xl pure black bg, no glow */}
-                  <View style={{
-                    width: 80, height: 80, borderRadius: 24, borderCurve: 'continuous',
-                    backgroundColor: '#000000', borderWidth: 1, borderColor: '#1f2937',
-                    alignItems: 'center', justifyContent: 'center', marginBottom: 32,
-                  }}>
-                    <ClipboardCheck size={36} color={colors.green} strokeWidth={1.8} />
-                  </View>
-
-                  {/* Title — HTML: text-xl font-black uppercase italic mb-4 */}
+                  <ClipboardCheck size={36} color={colors.green} strokeWidth={1.8} />
+                </View>
+                <Text style={{
+                  fontSize: 20, fontWeight: '900', color: colors.textPrimary,
+                  textTransform: 'uppercase', fontStyle: 'italic',
+                  textAlign: 'center', marginBottom: 16,
+                }}>
+                  Initial Inspection Needed
+                </Text>
+                <Text style={{
+                  fontSize: 12, color: '#6b7280', lineHeight: 20,
+                  textAlign: 'center', marginBottom: 40,
+                }}>
+                  {"Since there\u2019s no service history recorded for this unit, our AI requires a preliminary baseline. Complete the 12-point scan to generate your surgical maintenance plan."}
+                </Text>
+                <TouchableOpacity
+                  style={{
+                    width: '100%', backgroundColor: colors.green,
+                    borderRadius: 12, borderCurve: 'continuous',
+                    paddingVertical: 16, flexDirection: 'row',
+                    alignItems: 'center', justifyContent: 'center', gap: 8,
+                    boxShadow: '0 0 20px rgba(0,242,255,0.4)',
+                    opacity: isGenerating ? 0.6 : 1,
+                  }}
+                  onPress={handleGeneratePlan}
+                  activeOpacity={0.85}
+                  disabled={isGenerating}
+                >
+                  {isGenerating && <ActivityIndicator size={18} color="#000" />}
                   <Text style={{
-                    fontSize: 20, fontWeight: '900', color: colors.textPrimary,
-                    textTransform: 'uppercase', fontStyle: 'italic',
-                    textAlign: 'center', marginBottom: 16,
+                    fontSize: 14, fontWeight: '800', color: '#000000',
+                    textTransform: 'uppercase', letterSpacing: 2,
                   }}>
-                    Initial Inspection Needed
+                    {isGenerating ? 'INITIALIZING...' : 'INITIALIZE INSPECTION'}
                   </Text>
-
-                  {/* Description — HTML: text-gray-500 text-xs leading-relaxed mb-10 */}
-                  <Text style={{
-                    fontSize: 12, color: '#6b7280', lineHeight: 20,
-                    textAlign: 'center', marginBottom: 40,
-                  }}>
-                    {"Since there\u2019s no service history recorded for this unit, our AI requires a preliminary baseline. Complete the 12-point scan to generate your surgical maintenance plan."}
-                  </Text>
-
-                  {/* CTA button — HTML: w-full rounded-xl tracking-widest text-sm py-4 */}
-                  <TouchableOpacity
-                    style={{
-                      width: '100%', backgroundColor: colors.green,
-                      borderRadius: 12, borderCurve: 'continuous',
-                      paddingVertical: 16, flexDirection: 'row',
-                      alignItems: 'center', justifyContent: 'center', gap: 8,
-                      boxShadow: '0 0 20px rgba(0,242,255,0.4)',
-                      opacity: isGenerating ? 0.6 : 1,
-                    }}
-                    onPress={handleGeneratePlan}
-                    activeOpacity={0.85}
-                    disabled={isGenerating}
-                  >
-                    {isGenerating && <ActivityIndicator size={18} color="#000" />}
-                    <Text style={{
-                      fontSize: 14, fontWeight: '800', color: '#000000',
-                      textTransform: 'uppercase', letterSpacing: 2,
-                    }}>
-                      {isGenerating ? 'INITIALIZING...' : 'INITIALIZE INSPECTION'}
-                    </Text>
-                  </TouchableOpacity>
-                </BlurView>
-              </View>
-
-              {/* Manual tasks if any */}
-              {sortedActive.length > 0 && (
-                <>
-                  <SectionLabel>Your Tasks</SectionLabel>
-                  <GlassCard radius={16}>
-                    <View>
-                      {sortedActive.map((task, i) => (
-                        <View key={task._id}>
-                          {i > 0 && <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.04)', marginLeft: 14 }} />}
-                          <TaskRow task={task} onPress={() => setSelectedTask(task)} currency={currency} />
-                        </View>
-                      ))}
-                    </View>
-                  </GlassCard>
-                </>
-              )}
-
-              <ManualInputButton />
-            </>
-
-          /* Tasks loading */
-          ) : bikeId && plan && tasks.length === 0 ? (
-            <View style={{ alignItems: 'center', paddingVertical: 40, gap: 10 }}>
-              <Clock size={28} color={colors.textSecondary} />
-              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.textPrimary }}>Tasks loading...</Text>
+                </TouchableOpacity>
+              </BlurView>
             </View>
 
-          /* ── Plan with tasks ── */
-          ) : bikeId && plan ? (
-            <>
-              <View style={{ position: 'relative' }}>
-                {/* Progress card */}
-                <GlassCard radius={16} style={{ marginBottom: 24 }}>
-                  <View style={{ padding: 16, gap: 12 }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }}>{new Date().getFullYear()} Progress</Text>
-                      <Text style={{ fontSize: 18, fontWeight: '800' }}>
-                        <Text style={{ color: colors.green, fontVariant: ['tabular-nums'] }}>{yearCompletedCount}</Text>
-                        <Text style={{ color: colors.textTertiary }}>/{yearTotalCount}</Text>
-                      </Text>
-                    </View>
-                    <View style={{ height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                      <View style={{ height: '100%', borderRadius: 2, backgroundColor: colors.green, width: `${Math.max(yearProgress * 100, 2)}%` as any }} />
-                    </View>
-                    <View style={{ flexDirection: 'row', gap: 8 }}>
-                      <View style={{ flex: 1, alignItems: 'center', gap: 3, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 10, borderCurve: 'continuous', paddingVertical: 10 }}>
-                        <Clock size={13} color={colors.orange} />
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary, fontVariant: ['tabular-nums'] }}>{yearRemaining}</Text>
-                        <Text style={{ fontSize: 9, fontWeight: '600', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>Remaining</Text>
+            {sortedActive.length > 0 && (
+              <>
+                <SectionLabel>Your Tasks</SectionLabel>
+                <View style={{ gap: 12 }}>
+                  {sortedActive.map((task) => (
+                    <TaskRow key={task._id} task={task} onPress={() => setSelectedTask(task)} currency={currency} />
+                  ))}
+                </View>
+              </>
+            )}
+
+            <ManualInputButton />
+          </ScrollView>
+
+        /* ── Tasks loading ── */
+        ) : bikeId && plan && tasks.length === 0 ? (
+          <View style={{ alignItems: 'center', paddingVertical: 40, gap: 10 }}>
+            <Clock size={28} color={colors.textSecondary} />
+            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.textPrimary }}>Tasks loading...</Text>
+          </View>
+
+        /* ── Plan with tasks ── */
+        ) : bikeId && plan ? (
+          <>
+            {/* Fixed: Progress card + section label */}
+            <View style={{ paddingHorizontal: 24, paddingTop: 24, gap: 24 }}>
+              <GlassCard radius={16}>
+                <View style={{ padding: 16, gap: 12 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textPrimary }}>{new Date().getFullYear()} Progress</Text>
+                    <Text style={{ fontSize: 18, fontWeight: '800' }}>
+                      <Text style={{ color: colors.green, fontVariant: ['tabular-nums'] }}>{yearCompletedCount}</Text>
+                      <Text style={{ color: colors.textTertiary }}>/{yearTotalCount}</Text>
+                    </Text>
+                  </View>
+                  <View style={{ height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                    <View style={{ height: '100%', borderRadius: 2, backgroundColor: colors.green, width: `${Math.max(yearProgress * 100, 2)}%` as any }} />
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    {nextServiceDate && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Calendar size={13} color={colors.green} />
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>Next: </Text>
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textPrimary }}>{new Date(nextServiceDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</Text>
                       </View>
-                      {plan.nextServiceDate && (
-                        <View style={{ flex: 1, alignItems: 'center', gap: 3, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 10, borderCurve: 'continuous', paddingVertical: 10 }}>
-                          <Calendar size={13} color={colors.blue} />
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>{plan.nextServiceDate}</Text>
-                          <Text style={{ fontSize: 9, fontWeight: '600', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>Next Service</Text>
-                        </View>
-                      )}
-                      <View style={{ flex: 1, alignItems: 'center', gap: 3, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 10, borderCurve: 'continuous', paddingVertical: 10 }}>
-                        <CheckCircle2 size={13} color={colors.green} />
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary, fontVariant: ['tabular-nums'] }}>{Math.round(yearProgress * 100)}%</Text>
-                        <Text style={{ fontSize: 9, fontWeight: '600', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>Complete</Text>
-                      </View>
+                    )}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <CheckCircle2 size={13} color={colors.green} />
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textPrimary, fontVariant: ['tabular-nums'] }}>{Math.round(yearProgress * 100)}%</Text>
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>complete</Text>
                     </View>
                   </View>
-                </GlassCard>
+                </View>
+              </GlassCard>
 
-                {/* Tasks */}
-                <SectionLabel>Maintenance Tasks</SectionLabel>
-                <GlassCard radius={16} style={{ marginTop: 12, marginBottom: 24 }}>
-                  <View>
-                    {sortedActive.map((task, i) => (
+              <SectionLabel>Maintenance Tasks</SectionLabel>
+            </View>
+
+            {/* Scrollable: task cards + history + actions */}
+            <View style={{ flex: 1, position: 'relative' }}>
+              <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 120, gap: 12, paddingTop: 12 }} showsVerticalScrollIndicator={false}>
+                {isGenerating ? (
+                  <PlanGenerationSkeletonLoader />
+                ) : (
+                  <>
+                    {sortedActive.map((task) => (
                       <Animated.View key={task._id} layout={Layout.springify()} entering={FadeIn.duration(300)} exiting={FadeOut.duration(200)}>
-                        {i > 0 && <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.04)', marginLeft: 14 }} />}
                         <TaskRow task={task} onPress={() => setSelectedTask(task)} currency={currency} />
                       </Animated.View>
                     ))}
-                  </View>
-                </GlassCard>
+                  </>
+                )}
 
                 {/* History */}
                 {(completionHistory ?? []).length > 0 && (
-                  <>
+                  <View style={{ marginTop: 12 }}>
                     <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10 }} onPress={() => setHistoryExpanded(!historyExpanded)} activeOpacity={0.7}>
                       <History size={14} color={colors.textTertiary} />
                       <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textTertiary }}>Completion History ({(completionHistory ?? []).length})</Text>
@@ -560,7 +540,7 @@ export default function PlanScreen() {
                     </TouchableOpacity>
                     {historyExpanded && (
                       <Animated.View entering={FadeIn.duration(200)}>
-                        <GlassCard radius={16} style={{ marginBottom: 24 }}>
+                        <GlassCard radius={16} style={{ marginBottom: 12 }}>
                           <View>
                             {(completionHistory ?? []).map((entry, i) => (
                               <React.Fragment key={entry._id}>
@@ -586,11 +566,11 @@ export default function PlanScreen() {
                         </GlassCard>
                       </Animated.View>
                     )}
-                  </>
+                  </View>
                 )}
 
                 {/* Bottom actions */}
-                <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
                   <TouchableOpacity
                     style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.blue, borderRadius: 12, borderCurve: 'continuous', paddingVertical: 14 }}
                     onPress={handleViewAllParts}
@@ -603,36 +583,36 @@ export default function PlanScreen() {
                     <GenerateButton label="Regenerate" loadingLabel="Regenerating" onPress={handleGeneratePlan} isLoading={isGenerating} variant="secondary" />
                   </View>
                 </View>
+              </ScrollView>
 
-                {/* Paywall */}
-                {!isSubscribed && (
-                  <View style={{ ...StyleSheet.absoluteFillObject, borderRadius: 16, overflow: 'hidden', justifyContent: 'center', alignItems: 'center' }} pointerEvents="box-none">
-                    <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
-                    <View style={{ alignItems: 'center', paddingHorizontal: 32 }} pointerEvents="box-none">
-                      <View style={{ width: 52, height: 52, borderRadius: 16, borderCurve: 'continuous', backgroundColor: 'rgba(255,215,0,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-                        <Crown size={26} color="#FFD700" />
-                      </View>
-                      <Text style={{ fontSize: 20, fontWeight: '800', color: colors.textPrimary, marginBottom: 6 }}>Upgrade to ApexTune Pro</Text>
-                      <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 22 }}>
-                        Unlock your full AI maintenance plan, task tracking, and parts lists.
-                      </Text>
-                      <TouchableOpacity
-                        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.green, borderRadius: 14, borderCurve: 'continuous', paddingVertical: 14, paddingHorizontal: 40, boxShadow: '0 0 20px rgba(0,242,255,0.3)' }}
-                        onPress={() => router.push('/membership' as any)}
-                        activeOpacity={0.85}
-                      >
-                        <Sparkles size={16} color="#000000" />
-                        <Text style={{ fontSize: 16, fontWeight: '800', color: '#000000' }}>Upgrade to Pro</Text>
-                      </TouchableOpacity>
+              {/* Paywall */}
+              {!isSubscribed && (
+                <View style={{ ...StyleSheet.absoluteFillObject, borderRadius: 16, overflow: 'hidden', justifyContent: 'center', alignItems: 'center' }} pointerEvents="box-none">
+                  <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
+                  <View style={{ alignItems: 'center', paddingHorizontal: 32 }} pointerEvents="box-none">
+                    <View style={{ width: 52, height: 52, borderRadius: 16, borderCurve: 'continuous', backgroundColor: 'rgba(255,215,0,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+                      <Crown size={26} color="#FFD700" />
                     </View>
+                    <Text style={{ fontSize: 20, fontWeight: '800', color: colors.textPrimary, marginBottom: 6 }}>Upgrade to ApexTune Pro</Text>
+                    <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 22 }}>
+                      Unlock your full AI maintenance plan, task tracking, and parts lists.
+                    </Text>
+                    <TouchableOpacity
+                      style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.green, borderRadius: 14, borderCurve: 'continuous', paddingVertical: 14, paddingHorizontal: 40, boxShadow: '0 0 20px rgba(0,242,255,0.3)' }}
+                      onPress={() => router.push('/membership' as any)}
+                      activeOpacity={0.85}
+                    >
+                      <Sparkles size={16} color="#000000" />
+                      <Text style={{ fontSize: 16, fontWeight: '800', color: '#000000' }}>Upgrade to Pro</Text>
+                    </TouchableOpacity>
                   </View>
-                )}
-              </View>
+                </View>
+              )}
+            </View>
 
-              {!isSubscribed && <ManualInputButton />}
-            </>
-          ) : null}
-        </ScrollView>
+            {!isSubscribed && <ManualInputButton />}
+          </>
+        ) : null}
       </SafeAreaView>
 
       {/* Delete Modal */}
@@ -660,106 +640,16 @@ export default function PlanScreen() {
       </Modal>
 
       {/* Task Detail Modal */}
-      <Modal visible={selectedTask !== null} transparent animationType="fade" onRequestClose={() => setSelectedTask(null)}>
-        <Pressable style={{ flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', alignItems: 'center' }} onPress={() => setSelectedTask(null)}>
-          <Pressable style={{ borderRadius: 20, borderCurve: 'continuous', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', width: '90%', maxWidth: 400, overflow: 'hidden', backgroundColor: colors.surface1 }} onPress={() => {}}>
-            <BlurView intensity={40} tint="dark" style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16, gap: 14 }}>
-              {selectedTask && (() => {
-                const pri = (selectedTask.priority as Priority) in PRIORITY_CONFIG ? (selectedTask.priority as Priority) : 'low';
-                const stat = (selectedTask.status as TaskStatus) in STATUS_CONFIG ? (selectedTask.status as TaskStatus) : 'pending';
-                const pCfg = PRIORITY_CONFIG[pri];
-                const sCfg = STATUS_CONFIG[stat];
-                const isDone = stat === 'completed';
-                return (
-                  <>
-                    <View style={{ flexDirection: 'row', gap: 10 }}>
-                      <View style={{ width: 3, borderRadius: 1.5, alignSelf: 'stretch', backgroundColor: pCfg.text }} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 17, fontWeight: '700', color: colors.textPrimary, lineHeight: 22 }}>{selectedTask.name}</Text>
-                        <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
-                          <View style={{ borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2, backgroundColor: pCfg.bg }}>
-                            <Text style={{ fontSize: 10, fontWeight: '700', color: pCfg.text }}>{pCfg.label}</Text>
-                          </View>
-                          <View style={{ borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2, backgroundColor: sCfg.bg }}>
-                            <Text style={{ fontSize: 10, fontWeight: '700', color: sCfg.text }}>{sCfg.label}</Text>
-                          </View>
-                        </View>
-                      </View>
-                    </View>
-                    {selectedTask.description && <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 19 }}>{selectedTask.description}</Text>}
-                    <View>
-                      {selectedTask.dueDate && /^\d{4}-\d{2}-\d{2}/.test(selectedTask.dueDate) && (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)' }}>
-                          <Calendar size={13} color={colors.textTertiary} />
-                          <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textTertiary, flex: 1 }}>Due</Text>
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>{new Date(selectedTask.dueDate + 'T00:00:00').toLocaleDateString()}</Text>
-                        </View>
-                      )}
-                      {selectedTask.dueMileage && (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)' }}>
-                          <Gauge size={13} color={colors.textTertiary} />
-                          <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textTertiary, flex: 1 }}>Mileage</Text>
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>{selectedTask.dueMileage.toLocaleString()} km</Text>
-                        </View>
-                      )}
-                      {(selectedTask.intervalKm || selectedTask.intervalMonths) && (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)' }}>
-                          <RefreshCw size={13} color={colors.textTertiary} />
-                          <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textTertiary, flex: 1 }}>Interval</Text>
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>
-                            {[selectedTask.intervalKm ? `${selectedTask.intervalKm.toLocaleString()} km` : null, selectedTask.intervalMonths ? `${selectedTask.intervalMonths} mo` : null].filter(Boolean).join(' / ')}
-                          </Text>
-                        </View>
-                      )}
-                      {selectedTask.estimatedCostUsd && (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)' }}>
-                          <CurrencyIcon iconName={currencyIconName} fallbackSymbol={currency} size={13} color={colors.textTertiary} />
-                          <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textTertiary, flex: 1 }}>Est. Cost</Text>
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.green }}>{currency}{selectedTask.estimatedCostUsd.toFixed(0)}</Text>
-                        </View>
-                      )}
-                    </View>
-                    {selectedTask.partsNeeded && selectedTask.partsNeeded.length > 0 && (
-                      <View style={{ gap: 6 }}>
-                        <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>Parts Needed</Text>
-                        {selectedTask.partsNeeded.map((part, idx) => (
-                          <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 2 }}>
-                            <CircleDot size={8} color={colors.textTertiary} />
-                            <Text style={{ fontSize: 13, color: colors.textSecondary }}>{part}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 2 }}>
-                      {isSubscribed && (
-                        <TouchableOpacity
-                          style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: 'rgba(91,141,239,0.2)', borderRadius: 10, borderCurve: 'continuous', paddingVertical: 12, backgroundColor: 'rgba(91,141,239,0.1)' }}
-                          onPress={() => { setSelectedTask(null); handleViewParts(selectedTask._id, selectedTask.name); }}
-                          activeOpacity={0.7}
-                        >
-                          <Package size={14} color={colors.blue} />
-                          <Text style={{ fontSize: 14, fontWeight: '600', color: colors.blue }}>View Parts</Text>
-                        </TouchableOpacity>
-                      )}
-                      {!isDone && (
-                        <TouchableOpacity
-                          style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: colors.green, borderRadius: 10, borderCurve: 'continuous', paddingVertical: 12, opacity: completingTaskId === selectedTask._id ? 0.5 : 1 }}
-                          onPress={() => { handleCompleteTask(selectedTask._id); setSelectedTask(null); }}
-                          activeOpacity={0.7}
-                          disabled={completingTaskId === selectedTask._id}
-                        >
-                          <CheckCircle2 size={14} color="#FFFFFF" />
-                          <Text style={{ fontSize: 14, fontWeight: '600', color: '#000000' }}>Mark Complete</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  </>
-                );
-              })()}
-            </BlurView>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <TaskDetailModal
+        task={selectedTask}
+        onClose={() => setSelectedTask(null)}
+        currency={currency}
+        country={currentUser?.country}
+        onViewParts={handleViewParts}
+        onComplete={handleCompleteTask}
+        completingTaskId={completingTaskId}
+        isSubscribed={isSubscribed}
+      />
     </View>
   );
 }
@@ -769,7 +659,7 @@ export default function PlanScreen() {
 function SectionLabel({ children }: { children: string }) {
   return (
     <Text style={{
-      fontSize: 10, fontWeight: '900', color: 'rgba(255,255,255,0.4)',
+      fontSize: 10, fontWeight: '900', color: colors.textPrimary,
       textTransform: 'uppercase', letterSpacing: 3,
     }}>
       {children}

@@ -26,6 +26,7 @@ import {
 } from 'lucide-react-native';
 import { getCurrencySymbol, getCurrencyIconName } from '../../../utils/currency';
 import { CurrencyIcon } from '../../../components/CurrencyIcon';
+import { PartsListSkeletonLoader } from '../../../components/SkeletonLoader';
 import { colors } from '@/constants/theme';
 
 interface Part {
@@ -82,9 +83,15 @@ export default function BikePartsScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
-        <View style={styles.centeredContainer}>
-          <ActivityIndicator size="large" color={colors.green} />
-          <Text style={styles.centeredText}>Loading parts...</Text>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.7}>
+            <ArrowLeft size={22} color={colors.textPrimary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle} numberOfLines={1}>All Parts</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+        <View style={{ paddingHorizontal: 16 }}>
+          <PartsListSkeletonLoader />
         </View>
       </SafeAreaView>
     );

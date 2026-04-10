@@ -29,6 +29,7 @@ import {
 import { GenerateButton } from '../../components/GenerateButton';
 import { getCurrencySymbol, getCurrencyIconName } from '../../utils/currency';
 import { CurrencyIcon } from '../../components/CurrencyIcon';
+import { PartsListSkeletonLoader } from '../../components/SkeletonLoader';
 import { colors } from '@/constants/theme';
 
 interface Part {
@@ -296,11 +297,8 @@ export default function TaskPartsScreen() {
           </Text>
         </View>
 
-        {isLoading ? (
-          <View style={styles.centeredContainer}>
-            <ActivityIndicator size="large" color={colors.green} />
-            <Text style={styles.centeredText}>Loading parts...</Text>
-          </View>
+        {isLoading || (isGenerating && hasParts) ? (
+          <PartsListSkeletonLoader />
         ) : !hasParts ? (
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconWrapper}>

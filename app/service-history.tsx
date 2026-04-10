@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,8 +23,8 @@ import {
   Download,
   Share2,
   Wrench,
-  Crown,
-  Sparkles,
+  Brain,
+  ChevronRight,
 } from 'lucide-react-native';
 import { colors } from '@/constants/theme';
 
@@ -38,22 +39,69 @@ const EXCLUDED_TASKS = [
 
 function shouldExcludeTask(name: string): boolean {
   const lower = name.toLowerCase();
-  return EXCLUDED_TASKS.some((exc) => lower.includes(exc));
+  if (EXCLUDED_TASKS.some((exc) => lower.includes(exc))) return true;
+  if (lower.includes('measurement') || lower.includes('check')) return true;
+  return false;
 }
 
 // Clean up task names — make them definitive instead of conditional
 function cleanTaskName(name: string): string {
   let cleaned = name;
-  // Remove parenthetical conditions
   cleaned = cleaned.replace(/\s*\(replace if (?:necessary|needed|required)\)/gi, ' - Replaced');
   cleaned = cleaned.replace(/\s*\((?:replace|change) (?:if |as )?\w+\)/gi, ' - Replaced');
-  // Convert inspection/cleaning to definitive action
   cleaned = cleaned.replace(/inspection\/cleaning/gi, 'Replaced');
   cleaned = cleaned.replace(/inspection \/ cleaning/gi, 'Replaced');
   cleaned = cleaned.replace(/inspect(?:ion)? (?:and|&) clean(?:ing)?/gi, 'Cleaned & Inspected');
-  // Remove emojis
   cleaned = cleaned.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{FE00}-\u{FE0F}]|[\u{1F000}-\u{1FFFF}]/gu, '');
   return cleaned.trim();
+}
+
+// A4 aspect ratio: 1 : 1.4142
+const A4_RATIO = 1.4142;
+// Approximate how many rows fit per page (header takes space on first page)
+const ROWS_PER_FIRST_PAGE = 18;
+const ROWS_PER_CONTINUATION_PAGE = 26;
+
+/** Split all entries into pages that fit the A4 layout */
+function paginateEntries(
+  groupedByBike: { bikeId: string; bikeName: string; entries: any[] }[],
+  showFakeData: boolean,
+  fakeEntries: { name: string; date: string }[],
+  fakeBikeName: string,
+) {
+  // Flatten all entries with bike headers as separators
+  const flat: { type: 'bikeHeader' | 'tableHeader' | 'row' | 'summary'; data: any }[] = [];
+
+  if (showFakeData) {
+    flat.push({ type: 'bikeHeader', data: { bikeName: fakeBikeName } });
+    flat.push({ type: 'tableHeader', data: null });
+    fakeEntries.forEach((e, i) => flat.push({ type: 'row', data: { ...e, index: i } }));
+    flat.push({ type: 'summary', data: { count: fakeEntries.length } });
+  } else {
+    for (const group of groupedByBike) {
+      flat.push({ type: 'bikeHeader', data: { bikeName: group.bikeName } });
+      flat.push({ type: 'tableHeader', data: null });
+      group.entries.forEach((e, i) => flat.push({ type: 'row', data: { ...e, index: i } }));
+      flat.push({ type: 'summary', data: { count: group.entries.length } });
+    }
+  }
+
+  // Split into pages
+  const pages: typeof flat[] = [];
+  let cursor = 0;
+  let pageIndex = 0;
+
+  while (cursor < flat.length) {
+    const limit = pageIndex === 0 ? ROWS_PER_FIRST_PAGE : ROWS_PER_CONTINUATION_PAGE;
+    pages.push(flat.slice(cursor, cursor + limit));
+    cursor += limit;
+    pageIndex++;
+  }
+
+  // Ensure at least one page (for empty state)
+  if (pages.length === 0) pages.push([]);
+
+  return pages;
 }
 
 export default function ServiceHistoryScreen() {
@@ -63,8 +111,11 @@ export default function ServiceHistoryScreen() {
   const history = useQuery(api.maintenanceTasks.listAllCompletionHistory) ?? [];
   const viewShotRef = useRef<ViewShot>(null);
   const [saving, setSaving] = React.useState(false);
+  const { width: screenWidth } = useWindowDimensions();
 
-  // Build bike name map
+  const docWidth = screenWidth - 32; // 16px padding each side
+  const docHeight = docWidth * A4_RATIO;
+
   const bikeNameMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const bike of bikes) {
@@ -73,12 +124,10 @@ export default function ServiceHistoryScreen() {
     return map;
   }, [bikes]);
 
-  // Filter and clean history
   const filteredHistory = useMemo(() => {
     return history.filter((h) => !shouldExcludeTask(h.taskName));
   }, [history]);
 
-  // Group by bike, then by date
   const groupedByBike = useMemo(() => {
     const bikeGroups = new Map<string, typeof filteredHistory>();
     for (const entry of filteredHistory) {
@@ -130,7 +179,6 @@ export default function ServiceHistoryScreen() {
   const dateGenerated = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
   const isSubscribed = user?.subscriptionStatus === 'active';
 
-  // Fake data for free users — makes the blurred doc look full and real
   const FAKE_ENTRIES = [
     { name: 'Oil & Filter Change', date: 'Feb 12, 2026' },
     { name: 'Brake Pads - Front', date: 'Jan 28, 2026' },
@@ -150,6 +198,52 @@ export default function ServiceHistoryScreen() {
     : '2024 Sport Motorcycle';
   const showFakeData = !isSubscribed && groupedByBike.length === 0;
 
+  const pages = useMemo(
+    () => paginateEntries(groupedByBike, showFakeData, FAKE_ENTRIES, fakeBikeName),
+    [groupedByBike, showFakeData, fakeBikeName],
+  );
+
+  const renderPageItem = (item: { type: string; data: any }, idx: number) => {
+    if (item.type === 'bikeHeader') {
+      return (
+        <View key={`bh-${idx}`} style={s.docBikeHeader}>
+          <Text style={s.docBikeName}>{item.data.bikeName}</Text>
+        </View>
+      );
+    }
+    if (item.type === 'tableHeader') {
+      return (
+        <View key={`th-${idx}`} style={s.docTableHeader}>
+          <Text style={[s.docTableHeaderText, { flex: 2 }]}>Service</Text>
+          <Text style={[s.docTableHeaderText, { flex: 1, textAlign: 'right' }]}>Date</Text>
+        </View>
+      );
+    }
+    if (item.type === 'row') {
+      const d = item.data;
+      const name = d.taskName ? cleanTaskName(d.taskName) : d.name;
+      const date = d.completedAt
+        ? new Date(d.completedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+        : d.date;
+      return (
+        <View key={`r-${idx}`} style={[s.docRow, d.index % 2 === 0 && s.docRowAlt]}>
+          <Text style={[s.docRowText, { flex: 2 }]}>{name}</Text>
+          <Text style={[s.docRowDate, { flex: 1, textAlign: 'right' }]}>{date}</Text>
+        </View>
+      );
+    }
+    if (item.type === 'summary') {
+      return (
+        <View key={`sm-${idx}`} style={s.docBikeSummary}>
+          <Text style={s.docBikeSummaryText}>
+            {item.data.count} service{item.data.count !== 1 ? 's' : ''} completed
+          </Text>
+        </View>
+      );
+    }
+    return null;
+  };
+
   return (
     <SafeAreaView style={s.container}>
       <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
@@ -159,134 +253,108 @@ export default function ServiceHistoryScreen() {
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.7}>
           <ArrowLeft size={22} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Service History</Text>
-        <View style={{ width: 36 }} />
+        <Text style={s.headerTitle}>Service <Text style={{ color: colors.green }}>History</Text></Text>
+        {isSubscribed ? (
+          <TouchableOpacity style={s.shareBtn} onPress={handleShare} activeOpacity={0.7} disabled={saving}>
+            <Share2 size={18} color={colors.green} />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 36 }} />
+        )}
       </View>
 
-      {/* Document preview */}
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-        <View style={{ position: 'relative' }}>
-          <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
-            <View style={s.document}>
-              {/* Document header */}
-              <View style={s.docHeader}>
-                <Text style={s.docTitle}>SERVICE HISTORY</Text>
-                <View style={s.docHeaderLine} />
-                <Text style={s.docOwner}>{ownerName}</Text>
-                <Text style={s.docDate}>Generated {dateGenerated}</Text>
-              </View>
+      {/* Document pages */}
+      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} scrollEnabled={isSubscribed}>
+        <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
+          <View style={{ gap: 16 }}>
+            {pages.map((pageItems, pageIdx) => (
+              <View key={pageIdx} style={[s.document, { minHeight: docHeight }]}>
+                {/* First page gets the document header */}
+                {pageIdx === 0 && (
+                  <View style={s.docHeader}>
+                    <Text style={s.docTitle}>SERVICE HISTORY</Text>
+                    <View style={s.docHeaderLine} />
+                    <Text style={s.docOwner}>{ownerName}</Text>
+                    <Text style={s.docDate}>Generated {dateGenerated}</Text>
+                  </View>
+                )}
 
-              {/* Per-bike sections — show fake data for free users with no history */}
-              {showFakeData ? (
-                <View style={s.docBikeSection}>
-                  <View style={s.docBikeHeader}>
-                    <Text style={s.docBikeName}>{fakeBikeName}</Text>
+                {/* Continuation header for page 2+ */}
+                {pageIdx > 0 && (
+                  <View style={s.docContinuationHeader}>
+                    <Text style={s.docContinuationText}>SERVICE HISTORY — CONTINUED</Text>
                   </View>
-                  <View style={s.docTableHeader}>
-                    <Text style={[s.docTableHeaderText, { flex: 2 }]}>Service</Text>
-                    <Text style={[s.docTableHeaderText, { flex: 1, textAlign: 'right' }]}>Date</Text>
+                )}
+
+                {/* Page content */}
+                {pageItems.length === 0 && pageIdx === 0 && !showFakeData ? (
+                  <View style={s.docEmpty}>
+                    <Text style={s.docEmptyText}>No service records yet.</Text>
                   </View>
-                  {FAKE_ENTRIES.map((entry, i) => (
-                    <View key={i} style={[s.docRow, i % 2 === 0 && s.docRowAlt]}>
-                      <Text style={[s.docRowText, { flex: 2 }]}>{entry.name}</Text>
-                      <Text style={[s.docRowDate, { flex: 1, textAlign: 'right' }]}>{entry.date}</Text>
-                    </View>
-                  ))}
-                  <View style={s.docBikeSummary}>
-                    <Text style={s.docBikeSummaryText}>12 services completed</Text>
-                  </View>
+                ) : (
+                  pageItems.map((item, idx) => renderPageItem(item, idx))
+                )}
+
+                {/* Spacer to fill A4 page */}
+                <View style={{ flex: 1 }} />
+
+                {/* Footer on every page */}
+                <View style={s.docFooter}>
+                  <Text style={s.docFooterText}>
+                    Generated by Apex{pages.length > 1 ? ` — Page ${pageIdx + 1} of ${pages.length}` : ''}
+                  </Text>
                 </View>
-              ) : groupedByBike.length === 0 ? (
-                <View style={s.docEmpty}>
-                  <Text style={s.docEmptyText}>No service records yet.</Text>
-                </View>
-              ) : (
-                groupedByBike.map((group) => (
-                  <View key={group.bikeId} style={s.docBikeSection}>
-                    <View style={s.docBikeHeader}>
-                      <Text style={s.docBikeName}>{group.bikeName}</Text>
-                    </View>
-                    <View style={s.docTableHeader}>
-                      <Text style={[s.docTableHeaderText, { flex: 2 }]}>Service</Text>
-                      <Text style={[s.docTableHeaderText, { flex: 1, textAlign: 'right' }]}>Date</Text>
-                    </View>
-                    {group.entries.map((entry, i) => (
-                      <View key={entry._id} style={[s.docRow, i % 2 === 0 && s.docRowAlt]}>
-                        <Text style={[s.docRowText, { flex: 2 }]}>
-                          {cleanTaskName(entry.taskName)}
-                        </Text>
-                        <Text style={[s.docRowDate, { flex: 1, textAlign: 'right' }]}>
-                          {new Date(entry.completedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
-                        </Text>
-                      </View>
-                    ))}
-                    <View style={s.docBikeSummary}>
-                      <Text style={s.docBikeSummaryText}>
-                        {group.entries.length} service{group.entries.length !== 1 ? 's' : ''} completed
-                      </Text>
-                    </View>
-                  </View>
-                ))
-              )}
-
-              {/* Footer */}
-              <View style={s.docFooter}>
-                <Text style={s.docFooterText}>Generated by Apex</Text>
               </View>
-            </View>
-          </ViewShot>
+            ))}
+          </View>
+        </ViewShot>
 
-          {/* Paywall overlay for free users */}
-          {!isSubscribed && (
+        {/* Paywall overlay for free users — covers all pages */}
+        {!isSubscribed && (
+          <View style={s.paywallOverlayWrap}>
             <View style={s.paywallOverlay}>
               <BlurView intensity={20} tint="light" style={s.blurView} />
-              <View style={s.paywallContent}>
-                <View style={s.paywallBadge}>
-                  <Crown size={26} color={colors.green} />
-                </View>
-                <Text style={s.paywallTitle}>Pro Feature</Text>
-                <Text style={s.paywallSubtitle}>
-                  Export and share your complete service history with Apex Pro.
-                </Text>
-                <TouchableOpacity
-                  style={s.paywallButton}
-                  onPress={() => router.push('/membership')}
-                  activeOpacity={0.85}
-                >
-                  <Sparkles size={16} color="#000000" />
-                  <Text style={s.paywallButtonText}>Upgrade to Pro</Text>
-                </TouchableOpacity>
+              <View style={s.paywallModal}>
+                <BlurView intensity={40} tint="dark" style={s.paywallModalBlur}>
+                  <View style={s.paywallIconWrap}>
+                    <Brain size={28} color={colors.green} />
+                  </View>
+                  <Text style={s.paywallTitle}>
+                    UNLEASH THE{'\n'}
+                    <Text style={{ color: colors.green }}>FULL MACHINE</Text>
+                  </Text>
+                  <Text style={s.paywallSubtitle}>
+                    Export and share your verified service passport with Apex Pro.
+                  </Text>
+                  <TouchableOpacity
+                    style={s.paywallButton}
+                    onPress={() => router.push('/membership')}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={s.paywallButtonText}>UPGRADE TO PRO</Text>
+                    <ChevronRight size={16} color="#000000" />
+                  </TouchableOpacity>
+                </BlurView>
               </View>
             </View>
-          )}
-        </View>
-
-        {/* Action buttons — only for Pro users */}
-        {isSubscribed && (
-          <View style={s.actions}>
-            <TouchableOpacity
-              style={s.downloadBtn}
-              onPress={handleSaveToGallery}
-              activeOpacity={0.8}
-              disabled={saving}
-            >
-              {saving ? (
-                <ActivityIndicator size={16} color="#FFFFFF" />
-              ) : (
-                <Download size={16} color="#FFFFFF" />
-              )}
-              <Text style={s.downloadBtnText}>Save to Gallery</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={s.shareBtn}
-              onPress={handleShare}
-              activeOpacity={0.8}
-              disabled={saving}
-            >
-              <Share2 size={16} color={colors.green} />
-              <Text style={s.shareBtnText}>Share</Text>
-            </TouchableOpacity>
           </View>
+        )}
+
+        {/* Save to Gallery — full width below doc, Pro only */}
+        {isSubscribed && (
+          <TouchableOpacity
+            style={s.downloadBtn}
+            onPress={handleSaveToGallery}
+            activeOpacity={0.7}
+            disabled={saving}
+          >
+            {saving ? (
+              <ActivityIndicator size={16} color={colors.green} />
+            ) : (
+              <Download size={16} color={colors.green} />
+            )}
+            <Text style={s.downloadBtnText}>Save to Gallery</Text>
+          </TouchableOpacity>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -306,9 +374,9 @@ const s = StyleSheet.create({
     width: 36, height: 36, borderRadius: 10,
     backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
+  headerTitle: { fontSize: 18, fontWeight: '900', fontStyle: 'italic', textTransform: 'uppercase', letterSpacing: -0.5, color: colors.textPrimary } as any,
 
-  // Document (printable preview)
+  // Document page (A4 aspect ratio)
   document: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -329,11 +397,21 @@ const s = StyleSheet.create({
   docOwner: { fontSize: 14, fontWeight: '600', color: '#333333' },
   docDate: { fontSize: 11, color: '#888888', marginTop: 2 },
 
+  // Continuation header
+  docContinuationHeader: {
+    alignItems: 'center', marginBottom: 16,
+    borderBottomWidth: 1, borderBottomColor: '#DDDDDD', paddingBottom: 12,
+  },
+  docContinuationText: {
+    fontSize: 10, fontWeight: '700', color: '#999999',
+    letterSpacing: 2, textTransform: 'uppercase',
+  },
+
   // Bike section
   docBikeSection: { marginBottom: 20 },
   docBikeHeader: {
     borderBottomWidth: 2, borderBottomColor: '#111111',
-    paddingBottom: 6, marginBottom: 8,
+    paddingBottom: 6, marginBottom: 8, marginTop: 12,
   },
   docBikeName: { fontSize: 14, fontWeight: '700', color: '#111111', textTransform: 'uppercase', letterSpacing: 1 },
 
@@ -367,8 +445,11 @@ const s = StyleSheet.create({
   docFooterText: { fontSize: 9, color: '#BBBBBB', letterSpacing: 1 },
 
   // Paywall overlay
+  paywallOverlayWrap: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+  },
   paywallOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
     borderRadius: 12,
     overflow: 'hidden',
     justifyContent: 'center',
@@ -377,63 +458,84 @@ const s = StyleSheet.create({
   blurView: {
     ...StyleSheet.absoluteFillObject,
   },
-  paywallContent: {
-    alignItems: 'center',
-    paddingHorizontal: 32,
+  paywallModal: {
+    width: '88%',
+    maxWidth: 340,
+    borderRadius: 24,
+    borderCurve: 'continuous',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    boxShadow: '0 24px 48px rgba(0,0,0,0.6)',
   },
-  paywallBadge: {
-    width: 52,
-    height: 52,
+  paywallModalBlur: {
+    backgroundColor: 'rgba(10,10,10,0.85)',
+    paddingHorizontal: 24,
+    paddingTop: 32,
+    paddingBottom: 24,
+    alignItems: 'center',
+  } as any,
+  paywallIconWrap: {
+    width: 56,
+    height: 56,
     borderRadius: 16,
     borderCurve: 'continuous',
-    backgroundColor: 'rgba(0,242,255,0.12)',
+    backgroundColor: 'rgba(0,242,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,242,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
+    marginBottom: 20,
   },
   paywallTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '800',
-    color: '#1A1A1A',
-    marginBottom: 6,
-    letterSpacing: -0.3,
+    fontStyle: 'italic',
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+    textAlign: 'center',
+    lineHeight: 28,
+    letterSpacing: 1,
+    marginBottom: 8,
   },
   paywallSubtitle: {
-    fontSize: 14,
-    color: '#666666',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.5)',
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 22,
+    lineHeight: 18,
+    marginBottom: 20,
   },
   paywallButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: colors.green,
+    backgroundColor: '#FFFFFF',
     borderRadius: 14,
     borderCurve: 'continuous',
-    paddingVertical: 14,
-    paddingHorizontal: 40,
-    boxShadow: '0 4px 12px rgba(0,242,255,0.3)',
+    paddingVertical: 16,
+    width: '100%',
   },
   paywallButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
     color: '#000000',
+    letterSpacing: 2,
   },
 
-  // Action buttons
-  actions: { flexDirection: 'row', gap: 12 },
-  downloadBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: colors.green, borderRadius: 14, paddingVertical: 16,
-  },
-  downloadBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  // Share button — matches back button style, in header row
   shareBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: 'rgba(0,242,255,0.1)', borderRadius: 14, paddingVertical: 16,
-    paddingHorizontal: 24, borderWidth: 1, borderColor: 'rgba(0,242,255,0.2)',
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: 'rgba(0,242,255,0.08)',
+    borderWidth: 1, borderColor: 'rgba(0,242,255,0.15)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  shareBtnText: { fontSize: 15, fontWeight: '700', color: colors.green },
+  // Save to Gallery — full width below doc
+  actions: { gap: 12 },
+  downloadBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: 'rgba(0,242,255,0.08)', borderRadius: 16, paddingVertical: 16,
+    borderWidth: 1, borderColor: 'rgba(0,242,255,0.15)',
+  },
+  downloadBtnText: { fontSize: 14, fontWeight: '900', color: colors.green, textTransform: 'uppercase', letterSpacing: 2 },
 });

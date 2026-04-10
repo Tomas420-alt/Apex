@@ -20,6 +20,7 @@ import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Defs, RadialGradient, Stop, Rect, Line } from 'react-native-svg';
+import { useBikeContext } from '@/hooks/useSelectedBike';
 import {
   UserRoundCheck,
   User,
@@ -29,7 +30,6 @@ import {
   Crown,
   Camera,
   ClipboardList,
-  CreditCard,
   BrainCircuit,
   Box,
 } from 'lucide-react-native';
@@ -89,6 +89,7 @@ export default function PilotScreen() {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const user = useQuery(api.users.getCurrent);
   const bikes = (useQuery(api.bikes.list) ?? []) as BikeDoc[];
+  const { setSelectedBikeIndex } = useBikeContext();
   const generateUploadUrl = useMutation(api.imageEdits.generateUploadUrl);
   const updateBikeImageFromStorage = useMutation(api.bikes.updateBikeImageFromStorage);
   const regenerateHeroImage = useMutation(api.bikes.regenerateHeroImage);
@@ -296,12 +297,25 @@ export default function PilotScreen() {
           {/* Subscription Banner */}
           {isPro ? (
             <TouchableOpacity
-              style={styles.manageSubButton}
+              style={styles.upgradeBanner}
               onPress={handleManageSubscription}
-              activeOpacity={0.7}
+              activeOpacity={0.85}
             >
-              <CreditCard size={18} color={colors.textPrimary} />
-              <Text style={styles.manageSubText}>Manage Subscription</Text>
+              <LinearGradient
+                colors={[colors.green, '#00a2ff']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.upgradeBannerGradient}
+              >
+                <View style={styles.upgradeBannerIconWrap}>
+                  <BrainCircuit size={22} color="#000000" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.upgradeBannerTitle}>Apex Pro Active</Text>
+                  <Text style={styles.upgradeBannerSubtitle}>Manage your subscription</Text>
+                </View>
+                <ChevronRight size={16} color="#000000" />
+              </LinearGradient>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
@@ -357,7 +371,7 @@ export default function PilotScreen() {
                 <BlurView intensity={15} tint="dark" style={styles.bikeCardBlur}>
                   <TouchableOpacity
                     style={{ flex: 1 }}
-                    onPress={() => router.push(`/bike/${bike._id}` as any)}
+                    onPress={() => { setSelectedBikeIndex(index); router.push('/(tabs)/plan' as any); }}
                     activeOpacity={0.75}
                   >
                     <View style={styles.bikeCardHeader}>
@@ -405,15 +419,19 @@ export default function PilotScreen() {
           )}
 
           {/* Service History */}
-          <TouchableOpacity
-            style={styles.serviceHistoryButton}
-            onPress={() => router.push('/service-history' as any)}
-            activeOpacity={0.7}
-          >
-            <ClipboardList size={20} color={colors.green} />
-            <Text style={styles.serviceHistoryButtonText}>Service History</Text>
-            <ChevronRight size={20} color={colors.textTertiary} />
-          </TouchableOpacity>
+          <View style={styles.serviceHistoryOuter}>
+            <BlurView intensity={3.5} tint="dark" style={styles.serviceHistoryBlur}>
+              <TouchableOpacity
+                style={styles.serviceHistoryInner}
+                onPress={() => router.push('/service-history' as any)}
+                activeOpacity={0.7}
+              >
+                <ClipboardList size={20} color={colors.green} />
+                <Text style={styles.serviceHistoryButtonText}>Service History</Text>
+                <ChevronRight size={20} color={colors.textTertiary} />
+              </TouchableOpacity>
+            </BlurView>
+          </View>
 
           {/* Version */}
           <Text style={styles.version}>Apex v1.0.0</Text>
@@ -709,15 +727,20 @@ const styles = StyleSheet.create({
   },
 
   // Service history — pro feature, subtle accent (less prominent than upgrade CTA)
-  serviceHistoryButton: {
-    backgroundColor: 'rgba(0,242,255,0.08)',
+  serviceHistoryOuter: {
     borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0,242,255,0.15)',
+  },
+  serviceHistoryBlur: {
+    backgroundColor: 'rgba(0,242,255,0.06)',
+  },
+  serviceHistoryInner: {
     padding: 20,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(0,242,255,0.15)',
   },
   serviceHistoryButtonText: {
     fontSize: 14,

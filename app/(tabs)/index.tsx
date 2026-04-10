@@ -23,6 +23,7 @@ import { Id } from '../../convex/_generated/dataModel';
 import { Bike, Plus } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '@/constants/theme';
+import { useBikeContext } from '@/hooks/useSelectedBike';
 import { MotorcycleHero } from '../../components/home/MotorcycleHero';
 import { SummaryCards, MetricTab } from '../../components/maintenance/SummaryCards';
 import { TaskCard } from '../../components/maintenance/TaskCard';
@@ -123,17 +124,13 @@ export default function HomeScreen() {
     }
   };
 
-  // Reverse bikes so first added = first in list (API returns desc)
-  const bikesOrdered = useMemo(() => [...bikes].reverse(), [bikes]);
+  // Shared bike selection context
+  const { bikes: bikesOrdered, selectedBikeIndex: activeBikeIndex, setSelectedBikeIndex: setActiveBikeIndex, selectedBike: activeBike, selectedBikeId } = useBikeContext();
 
   // State
-  const [activeBikeIndex, setActiveBikeIndex] = useState(0);
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
   const [taskToComplete, setTaskToComplete] = useState<{ id: Id<'maintenanceTasks'>; name: string } | null>(null);
   const [activeMetricTab, setActiveMetricTab] = useState<MetricTab>('upcoming');
-
-  const activeBike = bikesOrdered[activeBikeIndex] ?? bikesOrdered[0] ?? null;
-  const selectedBikeId = activeBike?._id ?? null;
 
   const yearlyStatsBike = useQuery(
     api.maintenanceTasks.yearlyStats,
@@ -219,6 +216,7 @@ export default function HomeScreen() {
               data={bikesOrdered}
               horizontal
               pagingEnabled
+              scrollEnabled={bikesOrdered.length > 1}
               showsHorizontalScrollIndicator={false}
               onScroll={onHeroScroll}
               scrollEventThrottle={16}
@@ -252,8 +250,11 @@ export default function HomeScreen() {
             )}
           </View>
 
+          {/* Spacer to push dashboard below hero overlap */}
+          <View style={{ height: screenHeight * 0.57 + 11 }} />
+
           {/* ── Maintenance Dashboard ── */}
-          <View style={[styles.dashboardContent, { marginTop: screenHeight * 0.57 + 11 }]}>
+          <View style={[styles.dashboardContent, { flex: 1 }]}>
             {/* Summary Cards — filtered by active bike */}
             {!isLoading && (
               <SummaryCards
@@ -271,8 +272,8 @@ export default function HomeScreen() {
             )}
 
             {/* ── Card content ── */}
-            <View style={styles.cardContainerOuter}>
-            <BlurView intensity={15} tint="dark" style={styles.cardContainerBlur}>
+            <View style={[styles.cardContainerOuter, { flex: 1 }]}>
+            <BlurView intensity={15} tint="dark" style={[styles.cardContainerBlur, { flex: 1 }]}>
               {/* Upcoming Tasks (default) */}
               {activeMetricTab === 'upcoming' && (
                 <>
@@ -283,7 +284,7 @@ export default function HomeScreen() {
                   ) : filteredTasks.filter((t) => t.status === 'due').length === 0 ? (
                     <EmptyUpcoming />
                   ) : (
-                    <ScrollView showsVerticalScrollIndicator={false} style={styles.cardScroll} nestedScrollEnabled>
+                    <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} nestedScrollEnabled>
                       {filteredTasks.filter((t) => t.status === 'due').map((task) => (
                         <TaskCard
                           key={task._id}
@@ -306,7 +307,7 @@ export default function HomeScreen() {
                   {filteredOverdue.length === 0 ? (
                     <EmptyOverdue />
                   ) : (
-                    <ScrollView showsVerticalScrollIndicator={false} style={styles.cardScroll} nestedScrollEnabled>
+                    <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} nestedScrollEnabled>
                       {filteredOverdue.map((task) => (
                         <TaskCard
                           key={task._id}
@@ -329,7 +330,7 @@ export default function HomeScreen() {
                   {filteredCompleted.length === 0 ? (
                     <EmptyCompleted />
                   ) : (
-                    <ScrollView showsVerticalScrollIndicator={false} style={styles.cardScroll} nestedScrollEnabled>
+                    <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} nestedScrollEnabled>
                       <CompletedSection
                         tasks={filteredCompleted.map((t) => ({
                           _id: t._id,
@@ -347,14 +348,16 @@ export default function HomeScreen() {
 
               {/* Savings Breakdown */}
               {activeMetricTab === 'saved' && (
-                <SavingsBreakdown
-                  savedThisYear={isSubscribed ? (yearlyStats?.savedThisYear ?? 0) : 0}
-                  projectedSavings={isSubscribed ? (yearlyStats?.projectedSavings ?? 0) : 0}
-                  partsSpentThisYear={isSubscribed ? (yearlyStats?.partsSpentThisYear ?? 0) : 0}
-                  projectedPartsCost={isSubscribed ? (yearlyStats?.projectedPartsCost ?? 0) : 0}
-                  mechanicCostThisYear={isSubscribed ? (yearlyStats?.mechanicCostThisYear ?? 0) : 0}
-                  currency={currency}
-                />
+                <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} nestedScrollEnabled>
+                  <SavingsBreakdown
+                    savedThisYear={isSubscribed ? (yearlyStats?.savedThisYear ?? 0) : 0}
+                    projectedSavings={isSubscribed ? (yearlyStats?.projectedSavings ?? 0) : 0}
+                    partsSpentThisYear={isSubscribed ? (yearlyStats?.partsSpentThisYear ?? 0) : 0}
+                    projectedPartsCost={isSubscribed ? (yearlyStats?.projectedPartsCost ?? 0) : 0}
+                    mechanicCostThisYear={isSubscribed ? (yearlyStats?.mechanicCostThisYear ?? 0) : 0}
+                    currency={currency}
+                  />
+                </ScrollView>
               )}
             </BlurView>
             </View>
@@ -455,7 +458,7 @@ const styles = StyleSheet.create({
     width: 18,
   },
 
-  // Dashboard content (padded)
+  // Dashboard content (padded, flex column)
   dashboardContent: { paddingHorizontal: 24, gap: 32, paddingBottom: 16, zIndex: 1 },
 
   // Section header
@@ -473,9 +476,6 @@ const styles = StyleSheet.create({
   cardContainerBlur: {
     backgroundColor: 'transparent',
     padding: 16,
-  },
-  cardScroll: {
-    maxHeight: 280,
   },
 
   // Task list

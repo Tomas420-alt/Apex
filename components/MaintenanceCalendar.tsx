@@ -11,7 +11,6 @@ import {
   LayoutChangeEvent,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import Svg, { Defs, RadialGradient, Stop, Circle } from 'react-native-svg';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { colors } from '@/constants/theme';
 
@@ -38,7 +37,7 @@ interface Props {
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const INSET = 24; // horizontal inset for content within the card
 const GRID_INSET = 12; // horizontal inset for grid items (gap between months = GRID_INSET * 2 = INSET)
-const FIXED_ROWS = 6; // always render 6 week rows so card height is constant
+// No fixed rows — render only the rows needed so the card shrinks for 5-row months
 
 const PRIORITY_RANK: Record<string, number> = {
   critical: 4,
@@ -48,10 +47,10 @@ const PRIORITY_RANK: Record<string, number> = {
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
-  critical: '#FF6B6B',
-  high: '#FF9F43',
-  medium: '#A855F7',
-  low: '#8E8EA0',
+  critical: colors.priority.critical.text,
+  high: colors.priority.high.text,
+  medium: colors.priority.medium.text,
+  low: colors.priority.low.text,
 };
 
 const TOTAL_MONTHS = 1200;
@@ -74,9 +73,26 @@ function getCalendarDays(year: number, month: number): (number | null)[] {
   const cells: (number | null)[] = [];
   for (let i = 0; i < startDow; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-  // Always pad to exactly 42 cells (6 rows) so all months have identical height
-  while (cells.length < FIXED_ROWS * 7) cells.push(null);
+  // Pad to complete the last row only (nearest multiple of 7)
+  while (cells.length % 7 !== 0) cells.push(null);
   return cells;
+}
+
+/** How many week rows a given month needs */
+function getRowCount(year: number, month: number): number {
+  const firstDay = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  let startDow = firstDay.getDay() - 1;
+  if (startDow < 0) startDow = 6;
+  return Math.ceil((startDow + daysInMonth) / 7);
+}
+
+// dayCell height(48) + weekRow marginBottom(4) = 52 per row, last row has marginBottom 0
+// plus paddingTop(14) + paddingBottom(4)
+const ROW_HEIGHT = 52; // 48 + 4
+const GRID_PADDING_V = 18; // 14 top + 4 bottom
+function gridHeight(rows: number): number {
+  return rows * ROW_HEIGHT - 4 + GRID_PADDING_V; // subtract last row's marginBottom
 }
 
 function getDotColor(dayTasks: CalendarTask[]): string | null {
@@ -126,7 +142,7 @@ const MonthGrid = React.memo(({
   }
 
   return (
-    <View style={{ width: pageWidth, paddingHorizontal: GRID_INSET, paddingTop: 14, paddingBottom: 14 }}>
+    <View style={{ width: pageWidth, paddingHorizontal: GRID_INSET, paddingTop: 14, paddingBottom: 4 }}>
       {rows.map((row, ri) => (
         <View key={ri} style={[styles.weekRow, ri === rows.length - 1 && { marginBottom: 0 }]}>
           {row.map((day, ci) => {
@@ -149,28 +165,26 @@ const MonthGrid = React.memo(({
               >
                 {isToday ? (
                   <>
-                    <Svg width={70} height={70} style={{ position: 'absolute' }}>
-                      <Defs>
-                        <RadialGradient id="todayGlow" cx="50%" cy="50%" rx="50%" ry="50%">
-                          <Stop offset="0%" stopColor="#00f2ff" stopOpacity="0.55" />
-                          <Stop offset="35%" stopColor="#00f2ff" stopOpacity="0.3" />
-                          <Stop offset="65%" stopColor="#00f2ff" stopOpacity="0.1" />
-                          <Stop offset="100%" stopColor="#00f2ff" stopOpacity="0" />
-                        </RadialGradient>
-                      </Defs>
-                      <Circle cx={35} cy={35} r={35} fill="url(#todayGlow)" />
-                    </Svg>
+                    {/* Graduated glow layers — large to small, faint to bright */}
+                    <View style={{ position: 'absolute', width: 58, height: 58, borderRadius: 18, backgroundColor: 'rgba(0,242,255,0.02)' }} />
+                    <View style={{ position: 'absolute', width: 54, height: 54, borderRadius: 16, backgroundColor: 'rgba(0,242,255,0.02)' }} />
+                    <View style={{ position: 'absolute', width: 50, height: 50, borderRadius: 15, backgroundColor: 'rgba(0,242,255,0.03)' }} />
+                    <View style={{ position: 'absolute', width: 47, height: 47, borderRadius: 14, backgroundColor: 'rgba(0,242,255,0.03)' }} />
+                    <View style={{ position: 'absolute', width: 44, height: 44, borderRadius: 13, backgroundColor: 'rgba(0,242,255,0.04)' }} />
+                    <View style={{ position: 'absolute', width: 42, height: 42, borderRadius: 12, backgroundColor: 'rgba(0,242,255,0.04)' }} />
+                    <View style={{ position: 'absolute', width: 40, height: 40, borderRadius: 11, backgroundColor: 'rgba(0,242,255,0.05)' }} />
+                    <View style={{ position: 'absolute', width: 38, height: 38, borderRadius: 10, backgroundColor: 'rgba(0,242,255,0.06)' }} />
                     <View style={styles.todayHighlight}>
                       <Text style={styles.todayText}>{day}</Text>
                     </View>
                   </>
                 ) : (
-                  <Text style={[styles.dayText, isSelected && styles.dayTextSelected]}>
-                    {day}
-                  </Text>
-                )}
-                {dotColor && !isToday && (
-                  <View style={[styles.taskDot, { backgroundColor: dotColor }]} />
+                  <>
+                    {dotColor && <View style={[styles.taskBorder, { borderColor: dotColor, borderWidth: 1.5 }]} />}
+                    <Text style={[styles.dayText, isSelected && styles.dayTextSelected]}>
+                      {day}
+                    </Text>
+                  </>
                 )}
               </TouchableOpacity>
             );
@@ -217,6 +231,19 @@ export function MaintenanceCalendar({
   const [displayIndex, setDisplayIndex] = useState(currentIndex);
   const displayMonth = getMonthForIndex(baseYear, baseMonth, displayIndex);
   const monthDisplay = `${displayMonth.year} / ${String(displayMonth.month + 1).padStart(2, '0')}`;
+
+  // Dynamic grid height: max of current month and its immediate neighbors
+  const gridContainerHeight = useMemo(() => {
+    const prev = getMonthForIndex(baseYear, baseMonth, displayIndex - 1);
+    const curr = getMonthForIndex(baseYear, baseMonth, displayIndex);
+    const next = getMonthForIndex(baseYear, baseMonth, displayIndex + 1);
+    const maxRows = Math.max(
+      getRowCount(prev.year, prev.month),
+      getRowCount(curr.year, curr.month),
+      getRowCount(next.year, next.month),
+    );
+    return gridHeight(maxRows);
+  }, [displayIndex, baseYear, baseMonth]);
 
   // Measure the FlatList's actual width — the single source of truth for paging
   const [pageWidth, setPageWidth] = useState(0);
@@ -321,7 +348,7 @@ export function MaintenanceCalendar({
         </View>
 
         {/* Swipeable month grid */}
-        <View onLayout={handleFlatListLayout}>
+        <View onLayout={handleFlatListLayout} style={{ height: gridContainerHeight, overflow: 'hidden' }}>
           {pageWidth > 0 && (
             <FlatList
               ref={flatListRef}
@@ -334,8 +361,10 @@ export function MaintenanceCalendar({
               onMomentumScrollEnd={handleScrollEnd}
               getItemLayout={getItemLayout}
               initialScrollIndex={currentIndex}
-              windowSize={5}
-              maxToRenderPerBatch={3}
+              windowSize={7}
+              maxToRenderPerBatch={5}
+              initialNumToRender={5}
+              removeClippedSubviews={false}
               keyExtractor={(item) => String(item)}
               renderItem={renderItem}
             />
@@ -391,7 +420,7 @@ const styles = StyleSheet.create({
   },
   weekRow: {
     flexDirection: 'row',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   dayCell: {
     flex: 1,
@@ -421,11 +450,10 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     color: '#000000',
   },
-  taskDot: {
+  taskBorder: {
     position: 'absolute',
-    bottom: 2,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+    width: 36,
+    height: 36,
+    borderRadius: 8,
   },
 });

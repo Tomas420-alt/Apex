@@ -71,11 +71,30 @@ export const listByBike = query({
       if (!taskIds.has(mt._id)) combined.push(mt);
     }
 
-    return combined;
+    // Recompute status in real-time: due = today/tomorrow, overdue = past
+    const now = Date.now();
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    return combined.map((task) => {
+      if (task.status === "completed" || task.status === "skipped") return task;
+      if (!task.dueDate) return task;
+      const dueTime = new Date(task.dueDate).getTime();
+      if (isNaN(dueTime)) return task;
+      const timeUntilDue = dueTime - now;
+      let computedStatus: string;
+      if (timeUntilDue < 0) {
+        computedStatus = "overdue";
+      } else if (timeUntilDue <= oneDayMs) {
+        computedStatus = "due";
+      } else {
+        computedStatus = "pending";
+      }
+      return { ...task, status: computedStatus };
+    });
   },
 });
 
 // Query: Get tasks that are due within 7 days or overdue
+// Also includes critical priority tasks within 14 days
 // Only includes tasks from active plans
 export const listDue = query({
   args: {},
@@ -85,6 +104,7 @@ export const listDue = query({
 
     const now = Date.now();
     const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+    const fourteenDaysMs = 14 * 24 * 60 * 60 * 1000;
 
     // Get active plan IDs to filter tasks
     const allPlans = await ctx.db
@@ -146,9 +166,20 @@ export const listDue = query({
         }
       }
 
-      // Only include tasks that are due soon (within 7 days) or overdue
+      // Include tasks that are due soon (within 7 days) or overdue
       if (computedStatus === "due" || computedStatus === "overdue") {
         results.push({ ...task, status: computedStatus });
+      }
+      // Also include critical tasks within 14 days (even if not "due" by 7-day window)
+      else if (
+        computedStatus === "pending" &&
+        task.priority === "critical" &&
+        task.dueDate
+      ) {
+        const dueTime = new Date(task.dueDate).getTime();
+        if (!isNaN(dueTime) && (dueTime - now) <= fourteenDaysMs) {
+          results.push({ ...task, status: "due" });
+        }
       }
     }
     return results;
@@ -199,8 +230,11 @@ export const complete = mutation({
 
 // Mutation: Complete a task, log to history, and advance recurring tasks to next due date
 export const completeAndAdvance = mutation({
-  args: { id: v.id("maintenanceTasks") },
-  handler: async (ctx, { id: taskId }) => {
+  args: {
+    id: v.id("maintenanceTasks"),
+    currentMileage: v.optional(v.number()),
+  },
+  handler: async (ctx, { id: taskId, currentMileage }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
@@ -210,13 +244,38 @@ export const completeAndAdvance = mutation({
 
     const now = Date.now();
 
-    // 1. Log completion to history
+    // Query previous completion history BEFORE inserting new one (to avoid self-reference)
+    const existingHistory = await ctx.db
+      .query("completionHistory")
+      .withIndex("by_bike", (q) => q.eq("bikeId", task.bikeId))
+      .collect();
+    const prevCompletion = existingHistory
+      .filter((h) => h.userId === userId && h.completedAtMileage !== undefined)
+      .sort((a, b) => b.completedAt - a.completedAt)[0];
+
+    // Get bike data for mileage update and annualMileage
+    const bike = await ctx.db.get(task.bikeId);
+
+    // Update bike: mileage + last service date (so regeneration uses correct base)
+    if (bike) {
+      const patchData: Record<string, any> = {
+        lastServiceDate: new Date().toISOString().split("T")[0],
+      };
+      if (currentMileage !== undefined) {
+        patchData.mileage = currentMileage;
+        patchData.lastServiceMileage = currentMileage;
+      }
+      await ctx.db.patch(task.bikeId, patchData);
+    }
+
+    // 1. Log completion to history (with mileage)
     await ctx.db.insert("completionHistory", {
       taskId,
       bikeId: task.bikeId,
       userId,
       taskName: task.name,
       completedAt: now,
+      completedAtMileage: currentMileage,
       dueDate: task.dueDate,
       estimatedLaborCostUsd: task.estimatedLaborCostUsd,
       estimatedCostUsd: task.estimatedCostUsd,
@@ -226,19 +285,61 @@ export const completeAndAdvance = mutation({
     const hasInterval = task.intervalMonths && task.intervalMonths > 0;
 
     if (hasInterval) {
-      // Advance due date to next occurrence
-      const baseDueDate = task.dueDate ?? new Date().toISOString().slice(0, 10);
-      const nextDueDate = addMonthsToDate(baseDueDate, task.intervalMonths!);
-      // Also advance dueMileage if set
-      const nextDueMileage = task.dueMileage && task.intervalKm
-        ? task.dueMileage + task.intervalKm
-        : task.dueMileage;
+      // Calculate next due mileage from ACTUAL current mileage (not old dueMileage)
+      let nextDueMileage: number | undefined = task.dueMileage;
+      if (currentMileage !== undefined && task.intervalKm && task.intervalKm > 0) {
+        nextDueMileage = currentMileage + task.intervalKm;
+      } else if (task.dueMileage && task.intervalKm) {
+        nextDueMileage = task.dueMileage + task.intervalKm;
+      }
+
+      // Calculate next due date — try mileage-based first for accuracy
+      let nextDueDate: string;
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const bikeAnnualMileage = bike?.annualMileage;
+
+      if (currentMileage !== undefined && task.intervalKm && task.intervalKm > 0) {
+        let dailyRate: number | null = null;
+
+        // Prefer actual riding rate from previous completion
+        if (prevCompletion?.completedAtMileage !== undefined) {
+          const kmDelta = currentMileage - prevCompletion.completedAtMileage;
+          const daysDelta = (now - prevCompletion.completedAt) / (24 * 60 * 60 * 1000);
+          if (daysDelta > 1 && kmDelta > 0) {
+            dailyRate = kmDelta / daysDelta;
+          }
+        }
+
+        // Fall back to annualMileage from bike profile
+        if (!dailyRate && bikeAnnualMileage && bikeAnnualMileage > 0) {
+          dailyRate = bikeAnnualMileage / 365;
+        }
+
+        if (dailyRate && dailyRate > 0) {
+          // Mileage-based date: how many days until next intervalKm is reached
+          const daysUntilDue = Math.round(task.intervalKm / dailyRate);
+          // Also calculate time-based date
+          const timeBasedDays = Math.round(task.intervalMonths! * 30.44);
+          // Use whichever comes first
+          const days = Math.min(daysUntilDue, timeBasedDays);
+          const d = new Date();
+          d.setDate(d.getDate() + days);
+          nextDueDate = d.toISOString().split("T")[0];
+        } else {
+          // No riding rate data — fall back to intervalMonths
+          nextDueDate = addMonthsToDate(todayStr, task.intervalMonths!);
+        }
+      } else {
+        // No mileage input — fall back to intervalMonths from today
+        nextDueDate = addMonthsToDate(todayStr, task.intervalMonths!);
+      }
 
       await ctx.db.patch(taskId, {
         status: "pending",
         dueDate: nextDueDate,
         dueMileage: nextDueMileage,
         completedAt: undefined,
+        completedAtMileage: undefined,
       });
 
       return { advanced: true, nextDueDate };
@@ -247,6 +348,7 @@ export const completeAndAdvance = mutation({
       await ctx.db.patch(taskId, {
         status: "completed",
         completedAt: now,
+        completedAtMileage: currentMileage,
       });
 
       return { advanced: false };
@@ -484,45 +586,35 @@ export const yearlyStats = query({
       (sum, h) => sum + (h.estimatedCostUsd ?? 0), 0
     );
 
-    // ── Project all task occurrences through end of year (including recurring) ──
+    // ── Calculate stable yearly totals from task intervals ──
+    // Total = how many times each task occurs per year (based on interval), stable across completions
     let totalOccurrences = 0;
     let projectedLaborTotal = 0;
     let projectedPartsTotal = 0;
 
     for (const task of relevantTasks) {
-      if (!task.dueDate) continue;
-      // Skip completed/skipped tasks from projection — count them separately
-      const isActive = task.status !== "completed" && task.status !== "skipped";
+      if (task.status === "completed" || task.status === "skipped") continue;
 
-      // Count original occurrence if it falls in this year
-      if (task.dueDate >= yearStart && task.dueDate <= yearEnd) {
-        totalOccurrences++;
-        if (isActive) {
-          projectedLaborTotal += task.estimatedLaborCostUsd ?? 0;
-          projectedPartsTotal += task.estimatedCostUsd ?? 0;
-        }
-      }
-
-      // Project recurring occurrences through year end
+      // Calculate yearly occurrence count from interval
       const interval = task.intervalMonths && task.intervalMonths > 0
         ? task.intervalMonths
-        : 0; // 0 = non-recurring, don't project
+        : 0;
+
       if (interval > 0) {
-        const maxOccurrences = interval < 1 ? 60 : 24;
-        for (let occ = 1; occ <= maxOccurrences; occ++) {
-          const projectedDate = addMonthsToDate(task.dueDate, interval * occ);
-          if (projectedDate > yearEnd) break;
-          if (projectedDate >= yearStart) {
-            totalOccurrences++;
-            projectedLaborTotal += task.estimatedLaborCostUsd ?? 0;
-            projectedPartsTotal += task.estimatedCostUsd ?? 0;
-          }
-        }
+        // Recurring: occurrences per year = 12 / intervalMonths
+        const yearlyCount = Math.ceil(12 / interval);
+        totalOccurrences += yearlyCount;
+        projectedLaborTotal += (task.estimatedLaborCostUsd ?? 0) * yearlyCount;
+        projectedPartsTotal += (task.estimatedCostUsd ?? 0) * yearlyCount;
+      } else {
+        // One-off task
+        totalOccurrences += 1;
+        projectedLaborTotal += task.estimatedLaborCostUsd ?? 0;
+        projectedPartsTotal += task.estimatedCostUsd ?? 0;
       }
     }
 
-    // Add completed-this-year to totals (from history, not task projections)
-    totalOccurrences += completedThisYearCount;
+    // Add completed savings to projected totals (already earned)
     projectedLaborTotal += savedThisYear;
     projectedPartsTotal += partsSpentThisYear;
 
@@ -609,6 +701,8 @@ export const listForCalendar = query({
       status: string;
       dueDate: string;
       bikeId: string;
+      estimatedCostUsd?: number;
+      partsCount: number;
     }> = [];
 
     // Helper: compute real-time status for a due date
@@ -621,7 +715,7 @@ export const listForCalendar = query({
     };
 
     // Helper: process a task and add it (+ recurring projections) to results
-    const processTask = (task: { _id: any; name: string; priority: string; status: string; dueDate?: string; intervalMonths?: number; bikeId: any; userId: any }) => {
+    const processTask = (task: { _id: any; name: string; priority: string; status: string; dueDate?: string; intervalMonths?: number; bikeId: any; userId: any; estimatedCostUsd?: number; partsNeeded?: string[] }) => {
       if (task.userId !== userId) return;
       if (!task.dueDate) return;
 
@@ -639,6 +733,8 @@ export const listForCalendar = query({
           status: computedStatus,
           dueDate: task.dueDate,
           bikeId: task.bikeId,
+          estimatedCostUsd: task.estimatedCostUsd,
+          partsCount: task.partsNeeded?.length ?? 0,
         });
       }
 
@@ -673,6 +769,8 @@ export const listForCalendar = query({
               status: computeStatus(projectedDate),
               dueDate: projectedDate,
               bikeId: task.bikeId,
+              estimatedCostUsd: task.estimatedCostUsd,
+              partsCount: task.partsNeeded?.length ?? 0,
             });
           }
 

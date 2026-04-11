@@ -5,14 +5,14 @@ import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
 // ─── Update task statuses based on due dates ─────────────────────────────────
-// Runs daily: sets tasks to "due" (within 14 days) or "overdue" (past due date)
+// Runs daily: "due" = due today or tomorrow, "overdue" = past due date
 export const updateTaskStatuses = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
-    const fourteenDaysMs = 14 * 24 * 60 * 60 * 1000;
+    const oneDayMs = 24 * 60 * 60 * 1000;
 
-    // Get all pending tasks
+    // Get all non-completed/skipped tasks
     const pendingTasks = await ctx.db
       .query("maintenanceTasks")
       .filter((q) =>
@@ -36,13 +36,13 @@ export const updateTaskStatuses = internalMutation({
         if (task.status !== "overdue") {
           await ctx.db.patch(task._id, { status: "overdue" });
         }
-      } else if (timeUntilDue <= fourteenDaysMs) {
-        // Within 14 days → due
+      } else if (timeUntilDue <= oneDayMs) {
+        // Due today or tomorrow → due
         if (task.status !== "due") {
           await ctx.db.patch(task._id, { status: "due" });
         }
       } else {
-        // More than 14 days away → keep/set as pending
+        // More than 1 day away → pending
         if (task.status !== "pending") {
           await ctx.db.patch(task._id, { status: "pending" });
         }

@@ -28,6 +28,7 @@ export default defineSchema({
       })
     ),
     expoPushToken: v.optional(v.string()),
+    heroImageGensUsed: v.optional(v.number()),
   }).index("email", ["email"]),
 
   bikes: defineTable({
@@ -92,6 +93,7 @@ export default defineSchema({
     dueDate: v.optional(v.string()),
     dueMileage: v.optional(v.number()),
     completedAt: v.optional(v.number()),
+    completedAtMileage: v.optional(v.number()),
     partsNeeded: v.optional(v.array(v.string())),
   })
     .index("by_plan", ["planId"])
@@ -121,6 +123,7 @@ export default defineSchema({
     userId: v.string(),
     taskName: v.string(),
     completedAt: v.number(),
+    completedAtMileage: v.optional(v.number()),
     dueDate: v.optional(v.string()),
     estimatedLaborCostUsd: v.optional(v.number()),
     estimatedCostUsd: v.optional(v.number()),

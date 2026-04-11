@@ -102,12 +102,15 @@ export const add = mutation({
       notes: args.notes,
     });
 
-    // Trigger hero image generation if photo was uploaded
+    // Trigger hero image generation if photo was uploaded (Pro only for add-bike)
     if (photoStorageId) {
-      await ctx.scheduler.runAfter(0, internal.ai.generateHeroImage, {
-        bikeId,
-        photoStorageId,
-      });
+      const user = await ctx.db.get(userId);
+      if (user?.subscriptionStatus === "active") {
+        await ctx.scheduler.runAfter(0, internal.ai.generateHeroImage, {
+          bikeId,
+          photoStorageId,
+        });
+      }
     }
 
     return bikeId;
@@ -238,7 +241,7 @@ export const updateBikeImageFromStorage = mutation({
   },
 });
 
-// Regenerate hero image from existing bike photo
+// Regenerate hero image from existing bike photo (Pro only)
 export const regenerateHeroImage = mutation({
   args: {
     bikeId: v.id("bikes"),
@@ -246,6 +249,11 @@ export const regenerateHeroImage = mutation({
   handler: async (ctx, { bikeId }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
+
+    const user = await ctx.db.get(userId);
+    if (!user || user.subscriptionStatus !== "active") {
+      throw new Error("Hero image regeneration requires an ApexTune Pro subscription.");
+    }
 
     const bike = await ctx.db.get(bikeId);
     if (!bike) throw new Error("Bike not found");
@@ -301,7 +309,19 @@ export const generatePlan = mutation({
       throw new Error("Active subscription required to generate AI maintenance plans");
     }
 
-    // Include inspection data if available — only items with problems
+    // Get recent completion history for this bike
+    const completionHistory = await ctx.db
+      .query("completionHistory")
+      .withIndex("by_bike", (q) => q.eq("bikeId", bikeId))
+      .collect();
+    const recentCompletions = completionHistory
+      .filter((h) => h.userId === userId)
+      .sort((a, b) => b.completedAt - a.completedAt)
+      .slice(0, 20);
+    const completedTaskNames = recentCompletions.map((h) => h.taskName.toLowerCase());
+
+    // Include inspection data if available — only items with UNRESOLVED problems
+    // Skip inspection items that have a matching completion in history
     let inspectionSummary: string | undefined;
     if (bike.inspectionStatus === "complete") {
       const GOOD_RESPONSES = /^(good|ok|fine|clean|clear|normal|adequate|no issues|no leaks|within spec|n\/a|not applicable|no damage|no play|no wobble|smooth|firm|tight|dry|none)\b/i;
@@ -316,6 +336,14 @@ export const generatePlan = mutation({
           if (!response || response === "Not checked") return false;
           return !GOOD_RESPONSES.test(response);
         })
+        .filter((item) => {
+          // Skip items that have been addressed — match inspection item name
+          // against completed task names using keyword overlap
+          const itemWords = item.name.toLowerCase().split(/\s+/);
+          return !completedTaskNames.some((taskName) =>
+            itemWords.some((word) => word.length > 3 && taskName.includes(word))
+          );
+        })
         .sort((a, b) => a.order - b.order);
       if (problemItems.length > 0) {
         const lines = problemItems.map((item) => {
@@ -325,6 +353,16 @@ export const generatePlan = mutation({
         });
         inspectionSummary = `USER INSPECTION RESULTS — only items that need attention:\n${lines.join("\n")}`;
       }
+    }
+
+    let completionSummary: string | undefined;
+    if (recentCompletions.length > 0) {
+      const lines = recentCompletions.map((h) => {
+        const date = new Date(h.completedAt).toISOString().split("T")[0];
+        const mileage = h.completedAtMileage ? ` at ${h.completedAtMileage} km` : "";
+        return `- ${h.taskName}: completed ${date}${mileage}`;
+      });
+      completionSummary = lines.join("\n");
     }
 
     await ctx.scheduler.runAfter(0, internal.ai.generateMaintenancePlan, {
@@ -342,6 +380,7 @@ export const generatePlan = mutation({
       climate: bike.climate,
       storageType: bike.storageType,
       inspectionData: inspectionSummary,
+      completionHistory: completionSummary,
     });
   },
 });

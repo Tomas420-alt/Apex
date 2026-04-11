@@ -9,6 +9,8 @@ interface BikeContextValue {
   setSelectedBikeIndex: (index: number) => void;
   selectedBike: any | null;
   selectedBikeId: Id<'bikes'> | null;
+  highlightTaskId: string | null;
+  setHighlightTaskId: (id: string | null) => void;
 }
 
 const BikeContext = createContext<BikeContextValue | null>(null);
@@ -28,6 +30,7 @@ export function useSelectedBikeState() {
   const bikes = useMemo(() => [...rawBikes].reverse(), [rawBikes]);
 
   const [selectedBikeIndex, setSelectedBikeIndex] = useState(0);
+  const [highlightTaskId, setHighlightTaskId] = useState<string | null>(null);
 
   const selectedBike = bikes[selectedBikeIndex] ?? bikes[0] ?? null;
   const selectedBikeId = selectedBike?._id ?? null;
@@ -38,5 +41,7 @@ export function useSelectedBikeState() {
     setSelectedBikeIndex,
     selectedBike,
     selectedBikeId,
-  }), [bikes, selectedBikeIndex, selectedBike, selectedBikeId]);
+    highlightTaskId,
+    setHighlightTaskId,
+  }), [bikes, selectedBikeIndex, selectedBike, selectedBikeId, highlightTaskId]);
 }

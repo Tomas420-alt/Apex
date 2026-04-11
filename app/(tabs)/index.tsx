@@ -7,8 +7,6 @@ import {
   StyleSheet,
   StatusBar,
   TouchableOpacity,
-  Pressable,
-  Modal,
   ActivityIndicator,
   useWindowDimensions,
   NativeSyntheticEvent,
@@ -78,10 +76,8 @@ export default function HomeScreen() {
 
   // Maintenance data (from old maintenance.tsx)
   const tasks = useQuery(api.maintenanceTasks.listDue);
-  const recentlyCompleted = useQuery(api.maintenanceTasks.listRecentlyCompleted);
-  const completedCount = useQuery(api.maintenanceTasks.countCompleted);
+  const allCompletionHistory = useQuery(api.maintenanceTasks.listAllCompletionHistory);
   const savings = useQuery(api.maintenanceTasks.totalSavings);
-  const completeMutation = useMutation(api.maintenanceTasks.completeAndAdvance);
   const cleanupOrphaned = useMutation(api.maintenanceTasks.cleanupOrphaned);
   const yearlyStatsAll = useQuery(api.maintenanceTasks.yearlyStats, {});
 
@@ -125,11 +121,9 @@ export default function HomeScreen() {
   };
 
   // Shared bike selection context
-  const { bikes: bikesOrdered, selectedBikeIndex: activeBikeIndex, setSelectedBikeIndex: setActiveBikeIndex, selectedBike: activeBike, selectedBikeId } = useBikeContext();
+  const { bikes: bikesOrdered, selectedBikeIndex: activeBikeIndex, setSelectedBikeIndex: setActiveBikeIndex, selectedBike: activeBike, selectedBikeId, setHighlightTaskId } = useBikeContext();
 
   // State
-  const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
-  const [taskToComplete, setTaskToComplete] = useState<{ id: Id<'maintenanceTasks'>; name: string } | null>(null);
   const [activeMetricTab, setActiveMetricTab] = useState<MetricTab>('upcoming');
 
   const yearlyStatsBike = useQuery(
@@ -161,40 +155,19 @@ export default function HomeScreen() {
   const overdueTasks = tasks?.filter((t) => t.status === 'overdue') ?? [];
   const dueTasks = tasks?.filter((t) => t.status === 'due') ?? [];
   const allTasks = [...overdueTasks, ...dueTasks].sort((a, b) => {
-    const aMileage = a.dueMileage ?? Infinity;
-    const bMileage = b.dueMileage ?? Infinity;
-    if (aMileage !== bMileage) return aMileage - bMileage;
-    return (a.dueDate ?? '').localeCompare(b.dueDate ?? '');
+    return (a.dueDate ?? '9999-12-31').localeCompare(b.dueDate ?? '9999-12-31');
   });
 
   const filteredOverdue = selectedBikeId ? overdueTasks.filter((t) => t.bikeId === selectedBikeId) : overdueTasks;
   const filteredAllTasks = selectedBikeId ? allTasks.filter((t) => t.bikeId === selectedBikeId) : allTasks;
   const filteredTasks = selectedBikeId ? allTasks.filter((t) => t.bikeId === selectedBikeId) : allTasks;
   const filteredCompleted = selectedBikeId
-    ? (recentlyCompleted ?? []).filter((t) => t.bikeId === selectedBikeId)
-    : (recentlyCompleted ?? []);
+    ? (allCompletionHistory ?? []).filter((t) => t.bikeId === selectedBikeId)
+    : (allCompletionHistory ?? []);
   const filteredCompletedCount = yearlyStats?.completedThisYear ?? 0;
   const filteredSavings = yearlyStats?.savedThisYear ?? 0;
 
   const heroHeight = screenWidth * 1.15;
-
-  const handleConfirmComplete = async () => {
-    if (!taskToComplete) return;
-    const { id } = taskToComplete;
-    setTaskToComplete(null);
-    setCompletingIds((prev) => new Set(prev).add(id));
-    try {
-      await completeMutation({ id });
-    } catch (e) {
-      if (__DEV__) console.error('Failed to complete task:', e);
-    } finally {
-      setCompletingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-    }
-  };
 
   return (
     <View style={styles.container}>
@@ -289,11 +262,12 @@ export default function HomeScreen() {
                         <TaskCard
                           key={task._id}
                           task={task}
-                          bikeName={bikeNameMap.get(task.bikeId) ?? 'Unknown Bike'}
-                          onPress={() => router.push('/(tabs)/plan' as any)}
-                          onComplete={(id) => setTaskToComplete({ id, name: task.name })}
-                          isCompleting={completingIds.has(task._id)}
+                          onPress={() => {
+                            setHighlightTaskId(task._id);
+                            router.navigate('/(tabs)/plan' as any);
+                          }}
                           currency={currency}
+                          country={currentUser?.country}
                         />
                       ))}
                     </ScrollView>
@@ -312,11 +286,12 @@ export default function HomeScreen() {
                         <TaskCard
                           key={task._id}
                           task={task}
-                          bikeName={bikeNameMap.get(task.bikeId) ?? 'Unknown Bike'}
-                          onPress={() => router.push('/(tabs)/plan' as any)}
-                          onComplete={(id) => setTaskToComplete({ id, name: task.name })}
-                          isCompleting={completingIds.has(task._id)}
+                          onPress={() => {
+                            setHighlightTaskId(task._id);
+                            router.navigate('/(tabs)/plan' as any);
+                          }}
                           currency={currency}
+                          country={currentUser?.country}
                         />
                       ))}
                     </ScrollView>
@@ -334,7 +309,7 @@ export default function HomeScreen() {
                       <CompletedSection
                         tasks={filteredCompleted.map((t) => ({
                           _id: t._id,
-                          name: t.name,
+                          name: t.taskName,
                           completedAt: t.completedAt,
                           estimatedLaborCostUsd: t.estimatedLaborCostUsd,
                           bikeName: bikeNameMap.get(t.bikeId) ?? 'Unknown Bike',
@@ -348,7 +323,7 @@ export default function HomeScreen() {
 
               {/* Savings Breakdown */}
               {activeMetricTab === 'saved' && (
-                <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} nestedScrollEnabled>
+                <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }} nestedScrollEnabled>
                   <SavingsBreakdown
                     savedThisYear={isSubscribed ? (yearlyStats?.savedThisYear ?? 0) : 0}
                     projectedSavings={isSubscribed ? (yearlyStats?.projectedSavings ?? 0) : 0}
@@ -365,38 +340,6 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* Complete Confirmation Modal */}
-      <Modal
-        visible={taskToComplete !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setTaskToComplete(null)}
-      >
-        <Pressable style={styles.modalOverlay} onPress={() => setTaskToComplete(null)}>
-          <Pressable style={styles.modalBox} onPress={() => {}}>
-            <Text style={styles.modalTitle}>Mark Complete</Text>
-            <Text style={styles.modalMessage}>
-              Mark <Text style={{ fontWeight: '700' }}>{taskToComplete?.name}</Text> as completed?
-            </Text>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={styles.modalCancelBtn}
-                onPress={() => setTaskToComplete(null)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalConfirmBtn}
-                onPress={handleConfirmComplete}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.modalConfirmText}>Complete</Text>
-              </TouchableOpacity>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </View>
   );
 }
@@ -504,19 +447,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.green, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 14, gap: 8,
   },
   emptyButtonText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
-
-  // Modal
-  modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', alignItems: 'center' },
-  modalBox: {
-    backgroundColor: colors.surface2, borderRadius: 24, borderWidth: 1, borderColor: colors.border,
-    paddingHorizontal: 24, paddingTop: 24, paddingBottom: 20, width: '85%', maxWidth: 340,
-  },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 8 },
-  modalMessage: { fontSize: 15, color: colors.textSecondary, lineHeight: 22, marginBottom: 24 },
-  modalButtons: { flexDirection: 'row', gap: 12 },
-  modalCancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: colors.surface1, alignItems: 'center' },
-  modalCancelText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
-  modalConfirmBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: colors.green, alignItems: 'center' },
-  modalConfirmText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
 
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,9 @@ import {
   Pressable,
   useWindowDimensions,
   Image,
+  LayoutChangeEvent,
 } from 'react-native';
-import Animated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, Layout, useSharedValue, useAnimatedStyle, withSequence, withTiming, withDelay, runOnJS } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -160,7 +161,7 @@ const STATUS_CONFIG: Record<TaskStatus, { bg: string; text: string; label: strin
 
 // ─── Task Row ───────────────────────────────────────────────────────────────
 
-function TaskRow({ task, onPress, currency }: { task: MaintenanceTask; onPress: () => void; currency: string }) {
+function TaskRow({ task, onPress, currency, isHighlighted }: { task: MaintenanceTask; onPress: () => void; currency: string; isHighlighted?: boolean }) {
   const priority = (task.priority as Priority) in PRIORITY_CONFIG ? (task.priority as Priority) : 'low';
   const status = (task.status as TaskStatus) in STATUS_CONFIG ? (task.status as TaskStatus) : 'pending';
   const pCfg = PRIORITY_CONFIG[priority];
@@ -168,58 +169,97 @@ function TaskRow({ task, onPress, currency }: { task: MaintenanceTask; onPress: 
   const done = status === 'completed';
   const showStatusBadge = status !== 'pending';
 
+  // Pulse animation for highlighted task
+  const pulseOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    if (isHighlighted) {
+      // 2 pulses with the border color matching the left strip
+      pulseOpacity.value = withDelay(
+        400,
+        withSequence(
+          withTiming(1, { duration: 300 }),
+          withTiming(0, { duration: 300 }),
+        )
+      );
+    }
+  }, [isHighlighted]);
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    borderWidth: 1.5,
+    borderColor: pulseOpacity.value > 0 ? pCfg.text : 'transparent',
+    opacity: pulseOpacity.value > 0 ? pulseOpacity.value : 0,
+  }));
+
   return (
-    <TouchableOpacity
-      style={{
-        backgroundColor: 'rgba(255,255,255,0.02)',
-        borderLeftWidth: 2,
-        borderLeftColor: pCfg.text,
-        borderRadius: 12,
-        borderTopLeftRadius: 0,
-        borderBottomLeftRadius: 0,
-        padding: 16,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        opacity: done ? 0.55 : 1,
-      }}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <View style={{ flex: 1, gap: 4 }}>
-        <Text style={{ fontSize: 12, fontWeight: '900', textTransform: 'uppercase', fontStyle: 'italic', color: colors.textPrimary, textDecorationLine: done ? 'line-through' : 'none' }} numberOfLines={1}>
-          {task.name}
-        </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          {task.dueDate && /^\d{4}-\d{2}-\d{2}/.test(task.dueDate) && (
-            <Text style={{ fontSize: 11, fontWeight: '600', textTransform: 'uppercase', color: colors.textSecondary }}>
-              {new Date(task.dueDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-            </Text>
-          )}
-          {task.estimatedCostUsd ? (
-            <Text style={{ fontSize: 11, fontWeight: '600', textTransform: 'uppercase', color: colors.green }}>{currency}{task.estimatedCostUsd.toFixed(0)}</Text>
-          ) : null}
-          {task.partsNeeded && task.partsNeeded.length > 0 ? (
-            <Text style={{ fontSize: 11, fontWeight: '600', textTransform: 'uppercase', color: colors.textSecondary }}>{task.partsNeeded.length} parts</Text>
-          ) : null}
-          {!task.estimatedCostUsd && (!task.partsNeeded || task.partsNeeded.length === 0) && !task.dueDate ? (
-            <Text style={{ fontSize: 11, fontWeight: '600', textTransform: 'uppercase', color: colors.textSecondary }}>No parts needed</Text>
-          ) : null}
+    <View style={{ position: 'relative' }}>
+      <TouchableOpacity
+        style={{
+          backgroundColor: 'rgba(255,255,255,0.02)',
+          borderLeftWidth: 2,
+          borderLeftColor: pCfg.text,
+          borderRadius: 12,
+          borderTopLeftRadius: 0,
+          borderBottomLeftRadius: 0,
+          padding: 16,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          opacity: done ? 0.55 : 1,
+        }}
+        onPress={onPress}
+        activeOpacity={0.7}
+      >
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text style={{ fontSize: 12, fontWeight: '900', textTransform: 'uppercase', fontStyle: 'italic', color: colors.textPrimary, textDecorationLine: done ? 'line-through' : 'none' }} numberOfLines={1}>
+            {task.name}
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {task.dueDate && /^\d{4}-\d{2}-\d{2}/.test(task.dueDate) && (
+              <Text style={{ fontSize: 11, fontWeight: '600', textTransform: 'uppercase', color: colors.textSecondary }}>
+                {new Date(task.dueDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+              </Text>
+            )}
+            {task.estimatedCostUsd ? (
+              <Text style={{ fontSize: 11, fontWeight: '600', textTransform: 'uppercase', color: colors.green }}>{currency}{task.estimatedCostUsd.toFixed(0)}</Text>
+            ) : null}
+            {task.partsNeeded && task.partsNeeded.length > 0 ? (
+              <Text style={{ fontSize: 11, fontWeight: '600', textTransform: 'uppercase', color: colors.textSecondary }}>{task.partsNeeded.length} parts</Text>
+            ) : null}
+            {!task.estimatedCostUsd && (!task.partsNeeded || task.partsNeeded.length === 0) && !task.dueDate ? (
+              <Text style={{ fontSize: 11, fontWeight: '600', textTransform: 'uppercase', color: colors.textSecondary }}>No parts needed</Text>
+            ) : null}
+          </View>
         </View>
-      </View>
-      {showStatusBadge && (
-        <View style={{ borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2, backgroundColor: sCfg.bg }}>
-          <Text style={{ fontSize: 10, fontWeight: '700', color: sCfg.text }}>{sCfg.label}</Text>
-        </View>
-      )}
-    </TouchableOpacity>
+        {showStatusBadge && (
+          <View style={{ borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2, backgroundColor: sCfg.bg }}>
+            <Text style={{ fontSize: 10, fontWeight: '700', color: sCfg.text }}>{sCfg.label}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+      {/* Pulse border overlay */}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          {
+            position: 'absolute',
+            top: -1,
+            left: -1,
+            right: -1,
+            bottom: -1,
+            borderRadius: 12,
+          },
+          pulseStyle,
+        ]}
+      />
+    </View>
   );
 }
 
 // ─── Main Screen ────────────────────────────────────────────────────────────
 
 export default function PlanScreen() {
-  const { bikes: bikesList, selectedBikeIndex, setSelectedBikeIndex, selectedBike, selectedBikeId: bikeId } = useBikeContext();
+  const { bikes: bikesList, selectedBikeIndex, setSelectedBikeIndex, selectedBike, selectedBikeId: bikeId, highlightTaskId, setHighlightTaskId } = useBikeContext();
   const bikes = bikesList as BikeDoc[];
   const currentUser = useQuery(api.users.getCurrent);
   const currency = getCurrencySymbol(currentUser?.country);
@@ -238,10 +278,21 @@ export default function PlanScreen() {
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [completingTaskId, setCompletingTaskId] = useState<Id<'maintenanceTasks'> | null>(null);
+  // Track mileage input within the same day — skip asking again for subsequent completions
+  const todaysMileageInput = useRef<{ mileage: number; date: string } | null>(null);
   const [bikeToDelete, setBikeToDelete] = useState<BikeDoc | null>(null);
   const [selectedTask, setSelectedTask] = useState<MaintenanceTask | null>(null);
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const tasksSnapshotRef = useRef<string>('');
+
+  // Scroll-to-task support
+  const taskScrollRef = useRef<ScrollView>(null);
+  const taskLayoutMap = useRef<Record<string, number>>({});
+  const [activeHighlightId, setActiveHighlightId] = useState<string | null>(null);
+
+  const handleTaskLayout = useCallback((taskId: string, y: number) => {
+    taskLayoutMap.current[taskId] = y;
+  }, []);
 
   useEffect(() => {
     if (!isGenerating || !rawTasks) return;
@@ -268,9 +319,10 @@ export default function PlanScreen() {
     }
   };
 
-  const handleCompleteTask = async (taskId: Id<'maintenanceTasks'>) => {
+  const handleCompleteTask = async (taskId: Id<'maintenanceTasks'>, currentMileage: number) => {
     setCompletingTaskId(taskId);
-    try { await completeAndAdvance({ id: taskId }); }
+    todaysMileageInput.current = { mileage: currentMileage, date: new Date().toISOString().slice(0, 10) };
+    try { await completeAndAdvance({ id: taskId, currentMileage }); }
     catch (error) { if (__DEV__) console.error('Failed to complete task:', error); }
     finally { setCompletingTaskId(null); }
   };
@@ -294,11 +346,25 @@ export default function PlanScreen() {
 
   const activeTasks = tasks.filter((t) => t.status !== 'completed' && t.status !== 'skipped');
   const sortedActive = [...activeTasks].sort((a, b) => {
-    const am = a.dueMileage ?? Infinity;
-    const bm = b.dueMileage ?? Infinity;
-    if (am !== bm) return am - bm;
-    return (a.dueDate ?? '').localeCompare(b.dueDate ?? '');
+    return (a.dueDate ?? '9999-12-31').localeCompare(b.dueDate ?? '9999-12-31');
   });
+
+  // Scroll to highlighted task when set from home screen
+  useEffect(() => {
+    if (!highlightTaskId || sortedActive.length === 0) return;
+
+    setActiveHighlightId(null);
+    const timer = setTimeout(() => {
+      const y = taskLayoutMap.current[highlightTaskId];
+      if (y !== undefined && taskScrollRef.current) {
+        const scrollTarget = Math.max(0, y - sh * 0.3);
+        taskScrollRef.current.scrollTo({ y: scrollTarget, animated: true });
+        setActiveHighlightId(highlightTaskId);
+      }
+      setHighlightTaskId(null);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [highlightTaskId, sortedActive.length, sh]);
 
   const yearCompletedCount = yearlyStats?.completedThisYear ?? 0;
   const yearTotalCount = yearlyStats?.totalThisYear ?? 0;
@@ -515,14 +581,25 @@ export default function PlanScreen() {
 
             {/* Scrollable: task cards + history + actions */}
             <View style={{ flex: 1, position: 'relative' }}>
-              <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 120, gap: 12, paddingTop: 12 }} showsVerticalScrollIndicator={false}>
+              <ScrollView ref={taskScrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 120, gap: 12, paddingTop: 12 }} showsVerticalScrollIndicator={false}>
                 {isGenerating ? (
                   <PlanGenerationSkeletonLoader />
                 ) : (
                   <>
                     {sortedActive.map((task) => (
-                      <Animated.View key={task._id} layout={Layout.springify()} entering={FadeIn.duration(300)} exiting={FadeOut.duration(200)}>
-                        <TaskRow task={task} onPress={() => setSelectedTask(task)} currency={currency} />
+                      <Animated.View
+                        key={task._id}
+                        layout={Layout.springify()}
+                        entering={FadeIn.duration(300)}
+                        exiting={FadeOut.duration(200)}
+                        onLayout={(e: LayoutChangeEvent) => handleTaskLayout(task._id, e.nativeEvent.layout.y)}
+                      >
+                        <TaskRow
+                          task={task}
+                          onPress={() => setSelectedTask(task)}
+                          currency={currency}
+                          isHighlighted={activeHighlightId === task._id}
+                        />
                       </Animated.View>
                     ))}
                   </>
@@ -552,6 +629,7 @@ export default function PlanScreen() {
                                       <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textSecondary }}>{entry.taskName}</Text>
                                       <Text style={{ fontSize: 11, color: colors.textTertiary, marginTop: 1 }}>
                                         {new Date(entry.completedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        {(entry as any).completedAtMileage ? ` · ${(entry as any).completedAtMileage.toLocaleString()} km` : ''}
                                         {entry.dueDate ? ` · was due ${new Date(entry.dueDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : ''}
                                       </Text>
                                     </View>
@@ -645,6 +723,8 @@ export default function PlanScreen() {
         onClose={() => setSelectedTask(null)}
         currency={currency}
         country={currentUser?.country}
+        bikeMileage={selectedBike?.mileage}
+        todaysMileage={todaysMileageInput.current?.date === new Date().toISOString().slice(0, 10) ? todaysMileageInput.current.mileage : undefined}
         onViewParts={handleViewParts}
         onComplete={handleCompleteTask}
         completingTaskId={completingTaskId}

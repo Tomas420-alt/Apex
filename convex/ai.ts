@@ -456,10 +456,11 @@ export const generateMaintenancePlan = internalAction({
     storageType: v.optional(v.string()),
     inspectionData: v.optional(v.string()),
     confirmedOkItems: v.optional(v.array(v.string())),
+    completionHistory: v.optional(v.string()),
   },
   handler: async (
     ctx,
-    { bikeId, userId, make, model, year, mileage, lastServiceDate, lastServiceMileage, country, ridingStyle, annualMileage, climate, storageType, inspectionData, confirmedOkItems }
+    { bikeId, userId, make, model, year, mileage, lastServiceDate, lastServiceMileage, country, ridingStyle, annualMileage, climate, storageType, inspectionData, confirmedOkItems, completionHistory }
   ): Promise<Id<"maintenancePlans">> => {
     // Rate limit: max 5 per hour
     const ONE_HOUR = 60 * 60 * 1000;
@@ -541,7 +542,12 @@ ${countryInfo}${riderContext}
 
 VERIFIED BIKE SPECIFICATIONS (from web research — use these as ground truth):
 ${bikeResearch}
-${noHistoryRule}${inspectionInfo}
+${noHistoryRule}${inspectionInfo}${completionHistory ? `
+
+RECENT SERVICE HISTORY (tasks the user has already completed — DO NOT recreate these as urgent/due-now tasks):
+${completionHistory}
+
+RULE: For each completed task above, schedule the NEXT occurrence at the appropriate interval FROM the completion date. Do NOT mark recently completed work as due now. If a task was completed recently, its next occurrence should be in the future based on its normal interval.` : ""}
 
 PERSONALIZED INTERVALS RULE — USE THE RIDER PROFILE TO ADJUST ALL INTERVALS:
 The rider profile above describes how the user actually rides. You MUST use it to adjust every task's interval_km, interval_months, and due_date — do NOT use generic manufacturer intervals without adapting them. Key factors:
@@ -633,45 +639,60 @@ IMPORTANT: Do NOT create separate tasks for front and rear of the same component
 
     const hasInspectionIssues = !!inspectionData;
 
-    function calculateDueDate(intervalMonths: number, priority: string): string {
-      // Only override interval for inspection-flagged urgent items
+    function calculateDueDate(intervalMonths: number, intervalKm: number, priority: string): string {
+      // Critical inspection items: urgent, 14 days from today
       if (hasInspectionIssues && priority === "critical") {
         const d = new Date();
         d.setDate(d.getDate() + 14);
         return d.toISOString().split("T")[0];
       }
-      // Standard tasks: base date + interval_months
-      const d = new Date(baseDate);
+
+      // Calculate days from time interval
+      let daysFromTime: number;
       if (intervalMonths < 1) {
-        // Sub-monthly: add days (0.5 months = ~15 days)
-        d.setDate(d.getDate() + Math.round(intervalMonths * 30));
+        daysFromTime = Math.round(intervalMonths * 30);
       } else {
-        d.setMonth(d.getMonth() + Math.round(intervalMonths));
+        daysFromTime = Math.round(intervalMonths * 30.44);
       }
+
+      // Calculate days from mileage interval if annualMileage is known
+      let daysFromMileage = Infinity;
+      if (annualMileage && annualMileage > 0 && intervalKm > 0) {
+        daysFromMileage = Math.round((intervalKm / annualMileage) * 365);
+      }
+
+      // Use whichever comes first (manufacturer pattern: "every X km OR Y months")
+      const days = Math.min(daysFromTime, daysFromMileage);
+
+      const d = new Date(baseDate);
+      d.setDate(d.getDate() + days);
+
       // If calculated date is in the past, roll forward from today
       const now = new Date();
       if (d < now) {
         const fromNow = new Date();
-        if (intervalMonths < 1) {
-          fromNow.setDate(fromNow.getDate() + Math.round(intervalMonths * 30));
-        } else {
-          fromNow.setMonth(fromNow.getMonth() + Math.round(intervalMonths));
-        }
+        fromNow.setDate(fromNow.getDate() + days);
         return fromNow.toISOString().split("T")[0];
       }
       return d.toISOString().split("T")[0];
     }
 
-    function calculateDueMileage(intervalKm: number): number | undefined {
+    function calculateDueMileage(intervalKm: number, priority: string): number | undefined {
       if (intervalKm <= 0) return undefined;
+      // Critical inspection items: due NOW at current mileage
+      // The intervalKm is stored for future recurring calculations only
+      if (hasInspectionIssues && priority === "critical") {
+        return mileage;
+      }
       return mileage + intervalKm;
     }
 
     // Map parsed tasks — use AI intervals but calculate dates deterministically
     const tasks = parsed.tasks.map((t: TaskInput) => {
       const interval = t.interval_months > 0 ? t.interval_months : 6;
-      const dueDate = calculateDueDate(interval, t.priority);
-      const dueMileage = calculateDueMileage(t.interval_km);
+      const intervalKm = t.interval_km > 0 ? t.interval_km : 0;
+      const dueDate = calculateDueDate(interval, intervalKm, t.priority);
+      const dueMileage = calculateDueMileage(intervalKm, t.priority);
 
       console.log(`[Plan] "${t.task}" interval=${interval}mo priority=${t.priority} → due=${dueDate}${dueMileage ? ` / ${dueMileage}km` : ""}`);
 
@@ -688,6 +709,9 @@ IMPORTANT: Do NOT create separate tasks for front and rear of the same component
         partsNeeded: t.parts_needed.length > 0 ? t.parts_needed : undefined,
       };
     });
+
+    // Sort tasks chronologically by due date before saving
+    tasks.sort((a: any, b: any) => (a.dueDate ?? "9999-12-31").localeCompare(b.dueDate ?? "9999-12-31"));
 
     // Save the plan and its tasks to the database
     const { planId, tasks: insertedTasks } = await ctx.runMutation(
@@ -1065,31 +1089,62 @@ ${supplierPrompt}
 
 // ─── AI Hero Image Generation ───────────────────────────────────
 // Takes user's bike photo + 2 reference images → generates a cinematic hero image
-// Only triggered during onboarding
+// Free users: 1 lifetime gen (onboarding only). Pro users: 3/day, 10/week, 20/month.
 
 export const generateHeroImage = internalAction({
   args: {
     bikeId: v.id("bikes"),
     photoStorageId: v.id("_storage"),
+    isOnboarding: v.optional(v.boolean()),
   },
-  handler: async (ctx, { bikeId, photoStorageId }) => {
-    // Rate limit: max 5 per hour per user
+  handler: async (ctx, { bikeId, photoStorageId, isOnboarding }) => {
     const bike = await ctx.runQuery(internal.crons.getBike, { bikeId });
-    if (bike) {
-      const ONE_HOUR = 60 * 60 * 1000;
-      const recentCount = await ctx.runQuery(internal.rateLimit.checkRateLimit, {
-        userId: bike.userId,
-        action: "generateHeroImage",
-        windowMs: ONE_HOUR,
-      });
-      if (recentCount >= 50) {
-        throw new Error("Rate limit exceeded. Please try again later.");
+    if (!bike) throw new Error("Bike not found");
+
+    const user = await ctx.runQuery(internal.crons.getUserById, { userId: bike.userId });
+    if (!user) throw new Error("User not found");
+
+    const isPro = user.subscriptionStatus === "active";
+    const lifetimeGens = user.heroImageGensUsed ?? 0;
+
+    // ── Subscription gating ──
+    if (!isPro) {
+      // Free users: only 1 hero gen ever (the onboarding one)
+      if (!isOnboarding || lifetimeGens >= 1) {
+        console.log(`[AI Hero] Blocked: free user has ${lifetimeGens} gens, isOnboarding=${!!isOnboarding}`);
+        return;
       }
-      await ctx.runMutation(internal.rateLimit.recordAction, {
-        userId: bike.userId,
-        action: "generateHeroImage",
-      });
     }
+
+    // ── Rate limits for Pro users ──
+    if (isPro) {
+      const ONE_DAY = 24 * 60 * 60 * 1000;
+      const ONE_WEEK = 7 * ONE_DAY;
+      const ONE_MONTH = 30 * ONE_DAY;
+
+      const dailyCount = await ctx.runQuery(internal.rateLimit.checkRateLimit, {
+        userId: bike.userId, action: "generateHeroImage", windowMs: ONE_DAY,
+      });
+      if (dailyCount >= 3) throw new Error("Daily limit reached (3/day). Try again tomorrow.");
+
+      const weeklyCount = await ctx.runQuery(internal.rateLimit.checkRateLimit, {
+        userId: bike.userId, action: "generateHeroImage", windowMs: ONE_WEEK,
+      });
+      if (weeklyCount >= 10) throw new Error("Weekly limit reached (10/week). Try again next week.");
+
+      const monthlyCount = await ctx.runQuery(internal.rateLimit.checkRateLimit, {
+        userId: bike.userId, action: "generateHeroImage", windowMs: ONE_MONTH,
+      });
+      if (monthlyCount >= 20) throw new Error("Monthly limit reached (20/month).");
+    }
+
+    // Record rate limit entry + increment lifetime counter
+    await ctx.runMutation(internal.rateLimit.recordAction, {
+      userId: bike.userId, action: "generateHeroImage",
+    });
+    await ctx.runMutation(internal.users.incrementHeroGenCount, {
+      userId: user._id,
+    });
 
     const openai = getOpenAIClient();
 

@@ -5,7 +5,7 @@ import { Id } from '../../convex/_generated/dataModel';
 import { colors } from '@/constants/theme';
 
 interface CompletedTask {
-  _id: Id<'maintenanceTasks'>;
+  _id: string;
   name: string;
   completedAt?: number;
   estimatedLaborCostUsd?: number;

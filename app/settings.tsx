@@ -43,7 +43,7 @@ import { colors } from '@/constants/theme';
 
 function DigitalGrid({ width, height }: { width: number; height: number }) {
   const spacing = 40;
-  const c = 'rgba(0,242,255,0.045)';
+  const c = 'rgba(0,242,255,0.05)';
   const cols = Math.ceil(width / spacing);
   const rows = Math.ceil(height / spacing);
   return (
@@ -397,11 +397,12 @@ export default function SettingsScreen() {
 
       {/* ── Privacy Policy Modal ── */}
       <Modal visible={showPrivacy} transparent animationType="fade" onRequestClose={() => setShowPrivacy(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setShowPrivacy(false)}>
-          <Pressable style={[styles.modalCard, { maxWidth: 380, width: '92%' }]} onPress={() => {}}>
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowPrivacy(false)} />
+          <View style={[styles.modalCard, { maxWidth: 380, width: '92%' }]}>
             <BlurView intensity={40} tint="dark" style={styles.modalInner}>
               <Text style={styles.modalTitle}>Privacy Policy</Text>
-              <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
+              <ScrollView style={{ maxHeight: 400 }} contentContainerStyle={{ paddingBottom: 16 }} showsVerticalScrollIndicator nestedScrollEnabled>
                 <Text style={styles.legalText}>
                   <Text style={styles.legalHeading}>{'Last Updated: April 2, 2026\n\n'}</Text>
                   <Text style={styles.legalHeading}>{'1. Information We Collect\n'}</Text>
@@ -422,17 +423,18 @@ export default function SettingsScreen() {
                 <Text style={styles.modalSaveText}>Close</Text>
               </TouchableOpacity>
             </BlurView>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* ── Terms of Service Modal ── */}
       <Modal visible={showTerms} transparent animationType="fade" onRequestClose={() => setShowTerms(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setShowTerms(false)}>
-          <Pressable style={[styles.modalCard, { maxWidth: 380, width: '92%' }]} onPress={() => {}}>
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowTerms(false)} />
+          <View style={[styles.modalCard, { maxWidth: 380, width: '92%' }]}>
             <BlurView intensity={40} tint="dark" style={styles.modalInner}>
               <Text style={styles.modalTitle}>Terms of Service</Text>
-              <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
+              <ScrollView style={{ maxHeight: 400 }} contentContainerStyle={{ paddingBottom: 16 }} showsVerticalScrollIndicator nestedScrollEnabled>
                 <Text style={styles.legalText}>
                   <Text style={styles.legalHeading}>{'Last Updated: April 2, 2026\n\n'}</Text>
                   <Text style={styles.legalHeading}>{'1. Acceptance of Terms\n'}</Text>
@@ -442,7 +444,7 @@ export default function SettingsScreen() {
                   <Text style={styles.legalHeading}>{'3. Subscriptions\n'}</Text>
                   {'• Apex Pro is available as a monthly or yearly auto-renewing subscription\n• Payment is charged to your Apple ID account at purchase confirmation\n• Subscription auto-renews unless cancelled at least 24 hours before the end of the current period\n• You can manage or cancel subscriptions in your Apple ID Settings\n\n'}
                   <Text style={styles.legalHeading}>{'4. Disclaimer\n'}</Text>
-                  {'AI-generated maintenance plans are recommendations only. Apex is not liable for any damage, injury, or mechanical failure resulting from following or not following suggested maintenance schedules. Always consult your motorcycle manufacturer\'s service manual.\n\n'}
+                  {"AI-generated maintenance plans are recommendations only. Apex is not liable for any damage, injury, or mechanical failure resulting from following or not following suggested maintenance schedules. Always consult your motorcycle manufacturer's service manual.\n\nSavings estimates displayed in the app are approximate calculations based on average local labor rates and are provided for informational purposes only. Actual savings may vary depending on your location, mechanic, and specific service requirements.\n\n"}
                   <Text style={styles.legalHeading}>{'5. Account Termination\n'}</Text>
                   {'You may delete your account at any time. We reserve the right to suspend accounts that violate these terms.\n\n'}
                   <Text style={styles.legalHeading}>{'6. Contact\n'}</Text>
@@ -453,8 +455,8 @@ export default function SettingsScreen() {
                 <Text style={styles.modalSaveText}>Close</Text>
               </TouchableOpacity>
             </BlurView>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* ── Edit Name Modal ── */}

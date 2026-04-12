@@ -268,8 +268,8 @@ export const schedulePushReminders = internalAction({
           if (!alreadySent) {
             await ctx.runAction(internal.notifications.sendPushNotification, {
               pushToken: user.expoPushToken,
-              title: "Parts Reminder",
-              body: `${task.name} is due in 7 days for your ${bikeName}. Order the necessary parts now.`,
+              title: `Heads up — ${task.name}`,
+              body: `Your ${bikeName} needs this in about a week. Now's a good time to grab the parts so you're not scrambling later.`,
             });
             await ctx.runMutation(internal.crons.recordReminderSent, {
               taskId: task._id, userId: task.userId, reminderType: "parts_7day",
@@ -286,8 +286,8 @@ export const schedulePushReminders = internalAction({
         if (!alreadySent) {
           await ctx.runAction(internal.notifications.sendPushNotification, {
             pushToken: user.expoPushToken,
-            title: "Due Tomorrow",
-            body: `${task.name} is due tomorrow for your ${bikeName}. Make sure you're ready.`,
+            title: `Tomorrow — ${task.name}`,
+            body: `${bikeName} is counting on you. Block out some time tomorrow and knock this one out.`,
           });
           await ctx.runMutation(internal.crons.recordReminderSent, {
             taskId: task._id, userId: task.userId, reminderType: "due_tomorrow",
@@ -303,12 +303,41 @@ export const schedulePushReminders = internalAction({
         if (!alreadySent) {
           await ctx.runAction(internal.notifications.sendPushNotification, {
             pushToken: user.expoPushToken,
-            title: "Due Today",
-            body: `${task.name} is due today for your ${bikeName}.`,
+            title: `Today's the day`,
+            body: `${task.name} on your ${bikeName} — let's get it done. Your bike will thank you.`,
           });
           await ctx.runMutation(internal.crons.recordReminderSent, {
             taskId: task._id, userId: task.userId, reminderType: "due_today",
           });
+        }
+      }
+
+      // Overdue — nag every 3 days
+      if (daysUntilDue < -1) {
+        const daysOverdue = Math.abs(Math.floor(daysUntilDue));
+        // Send on day 3, 6, 9, etc.
+        if (daysOverdue % 3 === 0) {
+          const overdueType = `overdue_day${daysOverdue}`;
+          const alreadySent = await ctx.runQuery(internal.crons.hasReminderBeenSent, {
+            taskId: task._id, reminderType: overdueType,
+          });
+          if (!alreadySent) {
+            const messages = [
+              `${task.name} is ${daysOverdue} days overdue on your ${bikeName}. Your ride deserves better — let's take care of it.`,
+              `Still haven't done ${task.name}? Your ${bikeName} is waiting. Small effort now saves big headaches later.`,
+              `${daysOverdue} days and counting — ${task.name} on your ${bikeName} isn't going to do itself. Show your bike some love.`,
+              `Your ${bikeName} called. It wants its ${task.name} done. ${daysOverdue} days overdue — time to step up.`,
+            ];
+            const msg = messages[Math.floor(daysOverdue / 3) % messages.length];
+            await ctx.runAction(internal.notifications.sendPushNotification, {
+              pushToken: user.expoPushToken,
+              title: `${daysOverdue} days overdue`,
+              body: msg,
+            });
+            await ctx.runMutation(internal.crons.recordReminderSent, {
+              taskId: task._id, userId: task.userId, reminderType: overdueType,
+            });
+          }
         }
       }
     }

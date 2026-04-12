@@ -17,7 +17,7 @@ import {
 import Animated, { FadeIn, FadeOut, Layout, useSharedValue, useAnimatedStyle, withSequence, withTiming, withDelay, runOnJS } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
@@ -37,8 +37,6 @@ import {
   Plus,
   ChevronDown,
   History,
-  Crown,
-  Sparkles,
   Cpu,
   ClipboardCheck,
 } from 'lucide-react-native';
@@ -259,6 +257,7 @@ function TaskRow({ task, onPress, currency, isHighlighted }: { task: Maintenance
 // ─── Main Screen ────────────────────────────────────────────────────────────
 
 export default function PlanScreen() {
+  const insets = useSafeAreaInsets();
   const { bikes: bikesList, selectedBikeIndex, setSelectedBikeIndex, selectedBike, selectedBikeId: bikeId, highlightTaskId, setHighlightTaskId } = useBikeContext();
   const bikes = bikesList as BikeDoc[];
   const currentUser = useQuery(api.users.getCurrent);
@@ -665,30 +664,45 @@ export default function PlanScreen() {
 
               {/* Paywall */}
               {!isSubscribed && (
-                <View style={{ ...StyleSheet.absoluteFillObject, borderRadius: 16, overflow: 'hidden', justifyContent: 'center', alignItems: 'center' }} pointerEvents="box-none">
-                  <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
-                  <View style={{ alignItems: 'center', paddingHorizontal: 32 }} pointerEvents="box-none">
-                    <View style={{ width: 52, height: 52, borderRadius: 16, borderCurve: 'continuous', backgroundColor: 'rgba(255,215,0,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-                      <Crown size={26} color="#FFD700" />
+                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+                  <View style={{ flex: 1, borderRadius: 12, overflow: 'hidden' }}>
+                    <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: insets.bottom + 120 }}>
+                      <View style={{ alignItems: 'center', paddingHorizontal: 24, width: '100%', maxWidth: 340 }}>
+                        <View style={{ width: 56, height: 56, borderRadius: 16, borderCurve: 'continuous', backgroundColor: 'rgba(0,242,255,0.08)', borderWidth: 1, borderColor: 'rgba(0,242,255,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+                          <Cpu size={28} color={colors.green} />
+                        </View>
+                        <Text style={{ fontSize: 22, fontWeight: '800', fontStyle: 'italic', color: '#FFFFFF', textTransform: 'uppercase', textAlign: 'center', lineHeight: 28, letterSpacing: 1, marginBottom: 8 }}>
+                          {'UNLOCK YOUR\n'}
+                          <Text style={{ color: colors.green }}>AI PROTOCOL</Text>
+                        </Text>
+                        <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 18, marginBottom: 24 }}>
+                          Full maintenance plan, smart task tracking, and parts lists with Apex Pro.
+                        </Text>
+                        <TouchableOpacity
+                          style={{ borderRadius: 14, borderCurve: 'continuous', overflow: 'hidden', alignSelf: 'stretch', shadowColor: colors.green, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.25, shadowRadius: 20, elevation: 8 }}
+                          onPress={() => router.push('/membership' as any)}
+                          activeOpacity={0.85}
+                        >
+                          <LinearGradient
+                            colors={[colors.green, '#00a2ff']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16 }}
+                          >
+                            <Text style={{ fontSize: 15, fontWeight: '800', color: '#000000', letterSpacing: 2 }}>UPGRADE TO PRO</Text>
+                            <ChevronRight size={16} color="#000000" />
+                          </LinearGradient>
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                    <Text style={{ fontSize: 20, fontWeight: '800', color: colors.textPrimary, marginBottom: 6 }}>Upgrade to ApexTune Pro</Text>
-                    <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 22 }}>
-                      Unlock your full AI maintenance plan, task tracking, and parts lists.
-                    </Text>
-                    <TouchableOpacity
-                      style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.green, borderRadius: 14, borderCurve: 'continuous', paddingVertical: 14, paddingHorizontal: 40, boxShadow: '0 0 20px rgba(0,242,255,0.3)' }}
-                      onPress={() => router.push('/membership' as any)}
-                      activeOpacity={0.85}
-                    >
-                      <Sparkles size={16} color="#000000" />
-                      <Text style={{ fontSize: 16, fontWeight: '800', color: '#000000' }}>Upgrade to Pro</Text>
-                    </TouchableOpacity>
+                    <View style={{ position: 'absolute', bottom: insets.bottom + 58, left: 24, right: 24 }}>
+                      <ManualInputButton />
+                    </View>
                   </View>
                 </View>
               )}
             </View>
-
-            {!isSubscribed && <ManualInputButton />}
           </>
         ) : null}
       </SafeAreaView>

@@ -234,11 +234,11 @@ export default function HomeScreen() {
                 overdueCount={filteredOverdue.length}
                 dueCount={filteredAllTasks.length}
                 completedCount={filteredCompletedCount}
-                totalSavings={isSubscribed ? filteredSavings : 0}
+                totalSavings={filteredSavings}
                 currency={currency}
                 currencyIconName={currencyIconName}
                 completedProgress={yearlyStats ? (yearlyStats.totalThisYear > 0 ? yearlyStats.completedThisYear / yearlyStats.totalThisYear : 0) : undefined}
-                savingsProgress={isSubscribed && yearlyStats ? (yearlyStats.projectedSavings > 0 ? yearlyStats.savedThisYear / yearlyStats.projectedSavings : 0) : undefined}
+                savingsProgress={yearlyStats ? (yearlyStats.projectedSavings > 0 ? yearlyStats.savedThisYear / yearlyStats.projectedSavings : 0) : undefined}
                 activeTab={activeMetricTab}
                 onTabPress={setActiveMetricTab}
               />
@@ -325,11 +325,11 @@ export default function HomeScreen() {
               {activeMetricTab === 'saved' && (
                 <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }} nestedScrollEnabled>
                   <SavingsBreakdown
-                    savedThisYear={isSubscribed ? (yearlyStats?.savedThisYear ?? 0) : 0}
-                    projectedSavings={isSubscribed ? (yearlyStats?.projectedSavings ?? 0) : 0}
-                    partsSpentThisYear={isSubscribed ? (yearlyStats?.partsSpentThisYear ?? 0) : 0}
-                    projectedPartsCost={isSubscribed ? (yearlyStats?.projectedPartsCost ?? 0) : 0}
-                    mechanicCostThisYear={isSubscribed ? (yearlyStats?.mechanicCostThisYear ?? 0) : 0}
+                    savedThisYear={yearlyStats?.savedThisYear ?? 0}
+                    projectedSavings={yearlyStats?.projectedSavings ?? 0}
+                    partsSpentThisYear={yearlyStats?.partsSpentThisYear ?? 0}
+                    projectedPartsCost={yearlyStats?.projectedPartsCost ?? 0}
+                    mechanicCostThisYear={yearlyStats?.mechanicCostThisYear ?? 0}
                     currency={currency}
                   />
                 </ScrollView>

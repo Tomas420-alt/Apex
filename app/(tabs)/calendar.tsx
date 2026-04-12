@@ -83,9 +83,11 @@ export default function CalendarScreen() {
 
   const completeAndAdvance = useMutation(api.maintenanceTasks.completeAndAdvance);
   const [completingTaskId, setCompletingTaskId] = useState<Id<'maintenanceTasks'> | null>(null);
-  const handleCompleteTask = async (taskId: Id<'maintenanceTasks'>) => {
+  const todaysMileageInput = useRef<{ mileage: number; date: string } | null>(null);
+  const handleCompleteTask = async (taskId: Id<'maintenanceTasks'>, currentMileage: number) => {
     setCompletingTaskId(taskId);
-    try { await completeAndAdvance({ id: taskId }); }
+    todaysMileageInput.current = { mileage: currentMileage, date: new Date().toISOString().slice(0, 10) };
+    try { await completeAndAdvance({ id: taskId, currentMileage }); }
     catch (error) { if (__DEV__) console.error('Failed to complete task:', error); }
     finally { setCompletingTaskId(null); }
   };
@@ -93,6 +95,13 @@ export default function CalendarScreen() {
     router.push(`/parts/${taskId}?taskName=${encodeURIComponent(taskName)}&bikeId=${selectedCalTask?.bikeId}` as any);
   };
   const isSubscribed = currentUser?.subscriptionStatus === 'active';
+
+  // Get the bike mileage for the selected task
+  const selectedTaskBikeMileage = useMemo(() => {
+    if (!selectedCalTask) return undefined;
+    const bike = bikes.find((b: any) => b._id === selectedCalTask.bikeId);
+    return bike?.mileage as number | undefined;
+  }, [selectedCalTask, bikes]);
 
   const calendarStartDate = useMemo(() => {
     const now = new Date();
@@ -192,17 +201,17 @@ export default function CalendarScreen() {
           </View>
 
           <MaintenanceCalendar
-            tasks={calendarTasks ?? []}
+            tasks={isSubscribed ? (calendarTasks ?? []) : []}
             bikeNameMap={bikeNameMap}
             currentMonth={calendarMonth}
             onMonthChange={(m) => { setCalendarMonth(m); setSelectedDate(null); }}
             onTaskPress={() => router.push('/(tabs)/plan' as any)}
-            selectedDate={selectedDate}
-            onDateSelect={setSelectedDate}
+            selectedDate={isSubscribed ? selectedDate : null}
+            onDateSelect={isSubscribed ? setSelectedDate : () => {}}
             onDisplayMonthChange={handleDisplayMonthChange}
           />
 
-          {activeObjectives.length > 0 && (
+          {isSubscribed && activeObjectives.length > 0 && (
             <Text style={styles.objectivesTitle}>
               {selectedDate
                 ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
@@ -211,8 +220,8 @@ export default function CalendarScreen() {
           )}
         </View>
 
-        {/* Scrollable: task cards */}
-        {activeObjectives.length > 0 && (
+        {/* Scrollable: task cards (pro only) */}
+        {isSubscribed && activeObjectives.length > 0 && (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 120, gap: 12, paddingTop: 12 }} showsVerticalScrollIndicator={false}>
             {activeObjectives.map((task) => {
               const priorityColor = colors.priority[task.priority]?.text ?? colors.textTertiary;
@@ -257,8 +266,10 @@ export default function CalendarScreen() {
         onClose={() => setSelectedCalTask(null)}
         currency={currency}
         country={currentUser?.country}
-        onViewParts={handleViewParts}
-        onComplete={handleCompleteTask}
+        bikeMileage={selectedTaskBikeMileage}
+        todaysMileage={todaysMileageInput.current?.date === new Date().toISOString().slice(0, 10) ? todaysMileageInput.current.mileage : undefined}
+        onViewParts={isSubscribed ? handleViewParts : undefined}
+        onComplete={isSubscribed ? handleCompleteTask : undefined}
         completingTaskId={completingTaskId}
         isSubscribed={isSubscribed}
       />
